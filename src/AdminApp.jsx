@@ -7,7 +7,7 @@ import {
   LayoutGrid, Users, Wallet as WalletIcon, Receipt, Percent,
   FileBarChart2, Settings, Search, Bell, LogOut,
   ShieldCheck, Menu,
-  ArrowLeftRight, TrendingUp, Download, Ban,
+  TrendingUp, Download, Ban,
 } from "lucide-react";
 import { naira, Card } from "./shared.jsx";
 
@@ -97,15 +97,6 @@ function Sidebar({ active, onNavigate, mobileOpen, setMobileOpen, onSwitchRole, 
       </nav>
 
       <div className="space-y-1 border-t border-slate-100 px-3 py-3">
-        {onSwitchRole && (
-          <button
-            onClick={onSwitchRole}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50"
-          >
-            <ArrowLeftRight size={18} className="text-slate-400" />
-            Switch Role
-          </button>
-        )}
         <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50">
           <Settings size={18} className="text-slate-400" />
           Platform Settings
@@ -152,9 +143,8 @@ function Topbar({ title, onMenu }) {
           className="w-full bg-transparent text-sm text-slate-600 outline-none placeholder:text-slate-400"
         />
       </div>
-      <button className="relative rounded-full p-2 text-slate-500 hover:bg-slate-100">
+      <button className="ml-auto relative rounded-full p-2 text-slate-500 hover:bg-slate-100">
         <Bell size={19} />
-        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
       </button>
       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white">
         SA
