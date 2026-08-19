@@ -941,11 +941,11 @@ function ProfilePage() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold text-slate-500">Email Address</label>
-            <input defaultValue="chidi.okafor@unilag.edu.ng" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500" />
+            <input defaultValue="" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500" />
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold text-slate-500">Phone Number</label>
-            <input defaultValue="+234 812 345 6789" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500" />
+            <input defaultValue="" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500" />
           </div>
         </div>
         <button className="mt-5 rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white">
