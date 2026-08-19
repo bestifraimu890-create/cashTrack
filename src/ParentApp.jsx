@@ -14,7 +14,7 @@ import { CATEGORIES, naira, Card, CategoryIcon, ProgressBar } from "./shared.jsx
 
 /* ---------------------------------- data --------------------------------- */
 
-const PARENT = { name: "Ngozi Okafor" };
+const PARENT = { name: "" };
 
 const INITIAL_CHILDREN = [
   {
