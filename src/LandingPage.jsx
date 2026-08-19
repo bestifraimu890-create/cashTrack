@@ -19,6 +19,7 @@ import {
   Backpack,
   Clock,
   MapPin,
+  PiggyBank
 } from "lucide-react";
 import { naira } from "./shared.jsx";
 
@@ -56,7 +57,7 @@ function Logo({ dark = false }) {
         className={`flex h-9 w-9 items-center justify-center rounded-xl font-display text-lg font-bold ${
           dark ? "bg-white text-brand-800" : "bg-brand-700 text-white"
         }`}
-      ></div>
+      ><PiggyBank /></div>
       <span
         className={`font-display text-lg font-bold ${dark ? "text-white" : "text-slate-900"}`}
       >
