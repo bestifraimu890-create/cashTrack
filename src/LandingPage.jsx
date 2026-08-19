@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Wallet,
   ShieldCheck,
@@ -22,6 +22,51 @@ import {
   PiggyBank
 } from "lucide-react";
 import { naira } from "./shared.jsx";
+
+/* ─── scroll-animation hook ─── */
+function useScrollAnimation(options = {}) {
+  const ref = useRef(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.unobserve(el);
+        }
+      },
+      { threshold: options.threshold ?? 0.15, rootMargin: options.rootMargin ?? "0px 0px -40px 0px" }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, isVisible];
+}
+
+function AnimatedSection({ children, className = "", anim = "fade-up", delay = 0, ...props }) {
+  const [ref, isVisible] = useScrollAnimation();
+
+  const delayClass = delay > 0 ? `transition-delay-${delay}` : "";
+  const animClass = `anim-${anim}`;
+  const appliedClass = isVisible ? `${animClass} anim-visible ${delayClass}` : animClass;
+
+  return (
+    <div
+      ref={ref}
+      className={`${appliedClass} ${className}`}
+      style={delay > 0 ? { transitionDelay: `${delay}ms` } : undefined}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
 
 /* Stock photography real secondary school students, classrooms and
    campus life. Used to ground the product in what school actually
@@ -214,21 +259,21 @@ function Hero({ onGoToSignup }) {
     <section className="relative overflow-hidden">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-5 py-16 sm:py-20 lg:grid-cols-2 lg:px-8 lg:py-28">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700">
+          <span className="hero-entrance inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700">
             Built for secondary school life in Nigeria
           </span>
-          <h1 className="mt-5 font-display text-4xl font-bold leading-[1.1] text-slate-900 sm:text-5xl">
+          <h1 className="hero-entrance-delay mt-5 font-display text-4xl font-bold leading-[1.1] text-slate-900 sm:text-5xl">
             Money, sorted
             <br />
             between home and <span className="text-brand-700">school</span>.
           </h1>
-          <p className="mt-5 max-w-md text-lg leading-relaxed text-slate-600">
+          <p className="hero-entrance-delay-2 mt-5 max-w-md text-lg leading-relaxed text-slate-600">
             CashTrack gives secondary school students a real wallet with real
             limits, and gives parents visibility without micromanaging. No
             subscriptions, no locked features just a small fee when money
             actually moves.
           </p>
-          <div className="mt-8 flex flex-wrap items-center gap-4">
+          <div className="hero-entrance-delay-2 mt-8 flex flex-wrap items-center gap-4">
             <button
               onClick={onGoToSignup}
               className="flex items-center gap-2 rounded-xl bg-brand-700 px-6 py-3.5 text-sm font-semibold text-white hover:bg-brand-800"
@@ -242,7 +287,7 @@ function Hero({ onGoToSignup }) {
               See how it works
             </a>
           </div>
-          <div className="mt-10 flex items-center gap-6 text-xs text-slate-500">
+          <div className="hero-entrance-delay-3 mt-10 flex items-center gap-6 text-xs text-slate-500">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 size={14} className="text-mint-600" /> Free to use
             </span>
@@ -256,7 +301,9 @@ function Hero({ onGoToSignup }) {
             </span>
           </div>
         </div>
-        <WalletMock />
+        <div className="wallet-entrance">
+          <WalletMock />
+        </div>
       </div>
     </section>
   );
@@ -302,28 +349,31 @@ function Features() {
       id="who-its-for"
       className="mx-auto max-w-6xl px-5 py-16 lg:px-8 lg:py-24"
     >
-      <div className="max-w-2xl">
-        <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
-          Everything, included
-        </p>
-        <h2 className="mt-2 font-display text-3xl font-bold text-slate-900 sm:text-4xl">
-          One product. No feature you have to pay extra to unlock.
-        </h2>
-      </div>
+      <AnimatedSection>
+        <div className="max-w-2xl">
+          <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
+            Everything, included
+          </p>
+          <h2 className="mt-2 font-display text-3xl font-bold text-slate-900 sm:text-4xl">
+            One product. No feature you have to pay extra to unlock.
+          </h2>
+        </div>
+      </AnimatedSection>
       <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((f) => (
-          <div
-            key={f.title}
-            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
-              <f.icon size={19} />
+        {items.map((f, i) => (
+          <AnimatedSection key={f.title} anim="pop" delay={i * 80}>
+            <div
+              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                <f.icon size={19} />
+              </div>
+              <p className="mt-4 font-semibold text-slate-900">{f.title}</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
+                {f.body}
+              </p>
             </div>
-            <p className="mt-4 font-semibold text-slate-900">{f.title}</p>
-            <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
-              {f.body}
-            </p>
-          </div>
+          </AnimatedSection>
         ))}
       </div>
     </section>
@@ -359,75 +409,76 @@ function SchoolLife() {
   return (
     <section className="bg-white py-16 lg:py-24">
       <div className="mx-auto max-w-6xl px-5 lg:px-8">
-        <div className="max-w-2xl">
-          <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
-            Everyday school life
-          </p>
-          <h2 className="mt-2 font-display text-3xl font-bold text-slate-900 sm:text-4xl">
-            Made for secondary school students in modern Nigerian schools.
-          </h2>
-          <p className="mt-4 text-base leading-relaxed text-slate-600">
-            Secondary school runs on small, constant transactions a bus fare
-            here, a snack there, a contribution to a class project, lesson money
-            for the weekend. CashTrack was built by watching how students
-            actually move money through a school term, so the categories, limits
-            and requests match real school life instead of a generic budgeting
-            app.
-          </p>
-        </div>
+        <AnimatedSection>
+          <div className="max-w-2xl">
+            <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
+              Everyday school life
+            </p>
+            <h2 className="mt-2 font-display text-3xl font-bold text-slate-900 sm:text-4xl">
+              Made for secondary school students in modern Nigerian schools.
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-slate-600">
+              Secondary school runs on small, constant transactions a bus fare
+              here, a snack there, a contribution to a class project, lesson money
+              for the weekend. CashTrack was built by watching how students
+              actually move money through a school term, so the categories, limits
+              and requests match real school life instead of a generic budgeting
+              app.
+            </p>
+          </div>
+        </AnimatedSection>
 
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="col-span-1 overflow-hidden rounded-2xl sm:col-span-2 sm:row-span-2">
+          <AnimatedSection anim="scale-in" className="col-span-1 overflow-hidden rounded-2xl sm:col-span-2 sm:row-span-2">
             <img
               src={PHOTOS.classroomDesks}
               alt="Secondary school students in a classroom"
-              className="h-64 w-full object-cover sm:h-full"
+              className="h-64 w-full object-cover transition-transform duration-500 hover:scale-105 sm:h-full"
             />
-          </div>
-          <div className="overflow-hidden rounded-2xl">
+          </AnimatedSection>
+          <AnimatedSection anim="scale-in" delay={100} className="overflow-hidden rounded-2xl">
             <img
               src={PHOTOS.uniformWalking}
               alt="Students in school uniform walking together"
-              className="h-40 w-full object-cover sm:h-full"
+              className="h-40 w-full object-cover transition-transform duration-500 hover:scale-105 sm:h-full"
             />
-          </div>
-          <div className="overflow-hidden rounded-2xl">
+          </AnimatedSection>
+          <AnimatedSection anim="scale-in" delay={200} className="overflow-hidden rounded-2xl">
             <img
               src={PHOTOS.uniformField}
               alt="Students in uniform on the school field"
-              className="h-40 w-full object-cover sm:h-full"
+              className="h-40 w-full object-cover transition-transform duration-500 hover:scale-105 sm:h-full"
             />
-          </div>
-          <div className="overflow-hidden rounded-2xl">
+          </AnimatedSection>
+          <AnimatedSection anim="scale-in" delay={300} className="overflow-hidden rounded-2xl">
             <img
               src={PHOTOS.boyWithFriends}
               alt="Secondary school student with classmates"
-              className="h-40 w-full object-cover sm:h-full"
+              className="h-40 w-full object-cover transition-transform duration-500 hover:scale-105 sm:h-full"
             />
-          </div>
-          <div className="overflow-hidden rounded-2xl">
+          </AnimatedSection>
+          <AnimatedSection anim="scale-in" delay={400} className="overflow-hidden rounded-2xl">
             <img
               src={PHOTOS.boyUniform}
               alt="Secondary school student in uniform"
-              className="h-40 w-full object-cover sm:h-full"
+              className="h-40 w-full object-cover transition-transform duration-500 hover:scale-105 sm:h-full"
             />
-          </div>
+          </AnimatedSection>
         </div>
 
         <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {facts.map((f) => (
-            <div
-              key={f.title}
-              className="rounded-2xl border border-slate-200 bg-paper p-6"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-700 text-white">
-                <f.icon size={18} />
+          {facts.map((f, i) => (
+            <AnimatedSection key={f.title} anim="fade-up" delay={i * 100}>
+              <div className="rounded-2xl border border-slate-200 bg-paper p-6">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-700 text-white">
+                  <f.icon size={18} />
+                </div>
+                <p className="mt-4 font-semibold text-slate-900">{f.title}</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
+                  {f.body}
+                </p>
               </div>
-              <p className="mt-4 font-semibold text-slate-900">{f.title}</p>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
-                {f.body}
-              </p>
-            </div>
+            </AnimatedSection>
           ))}
         </div>
       </div>
@@ -458,23 +509,27 @@ function HowItWorks() {
   return (
     <section id="how-it-works" className="bg-white py-16 lg:py-24">
       <div className="mx-auto max-w-6xl px-5 lg:px-8">
-        <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
-          How it works
-        </p>
-        <h2 className="mt-2 font-display text-3xl font-bold text-slate-900 sm:text-4xl">
-          Set up in three steps.
-        </h2>
+        <AnimatedSection>
+          <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
+            How it works
+          </p>
+          <h2 className="mt-2 font-display text-3xl font-bold text-slate-900 sm:text-4xl">
+            Set up in three steps.
+          </h2>
+        </AnimatedSection>
         <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-3">
-          {steps.map((s) => (
-            <div key={s.n}>
-              <span className="font-display text-4xl font-bold text-brand-100">
-                {s.n}
-              </span>
-              <p className="mt-3 font-semibold text-slate-900">{s.title}</p>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
-                {s.body}
-              </p>
-            </div>
+          {steps.map((s, i) => (
+            <AnimatedSection key={s.n} anim="fade-up" delay={i * 150}>
+              <div>
+                <span className="font-display text-4xl font-bold text-brand-100">
+                  {s.n}
+                </span>
+                <p className="mt-3 font-semibold text-slate-900">{s.title}</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
+                  {s.body}
+                </p>
+              </div>
+            </AnimatedSection>
           ))}
         </div>
       </div>
@@ -512,26 +567,25 @@ function Audiences() {
   return (
     <section className="mx-auto max-w-6xl px-5 py-16 lg:px-8 lg:py-24">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {cards.map((c) => (
+        <AnimatedSection anim="fade-left">
           <div
-            key={c.title}
             className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-card"
           >
-            {c.image && (
-              <img src={c.image} alt="" className="h-44 w-full object-cover" />
+            {cards[0].image && (
+              <img src={cards[0].image} alt="" className="h-44 w-full object-cover" />
             )}
             <div className="p-8">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-700 text-white">
-                <c.icon size={20} />
+                {React.createElement(cards[0].icon, { size: 20 })}
               </div>
               <p className="mt-5 font-display text-xl font-bold text-slate-900">
-                {c.title}
+                {cards[0].title}
               </p>
               <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                {c.body}
+                {cards[0].body}
               </p>
               <ul className="mt-5 space-y-2.5">
-                {c.points.map((p) => (
+                {cards[0].points.map((p) => (
                   <li
                     key={p}
                     className="flex items-center gap-2 text-sm text-slate-600"
@@ -542,7 +596,37 @@ function Audiences() {
               </ul>
             </div>
           </div>
-        ))}
+        </AnimatedSection>
+        <AnimatedSection anim="fade-right">
+          <div
+            className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-card"
+          >
+            {cards[1].image && (
+              <img src={cards[1].image} alt="" className="h-44 w-full object-cover" />
+            )}
+            <div className="p-8">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-700 text-white">
+                {React.createElement(cards[1].icon, { size: 20 })}
+              </div>
+              <p className="mt-5 font-display text-xl font-bold text-slate-900">
+                {cards[1].title}
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                {cards[1].body}
+              </p>
+              <ul className="mt-5 space-y-2.5">
+                {cards[1].points.map((p) => (
+                  <li
+                    key={p}
+                    className="flex items-center gap-2 text-sm text-slate-600"
+                  >
+                    <CheckCircle2 size={15} className="text-mint-600" /> {p}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </AnimatedSection>
       </div>
     </section>
   );
@@ -554,40 +638,50 @@ function RevenueSection() {
   return (
     <section id="revenue" className="bg-brand-900 py-16 text-white lg:py-24">
       <div className="mx-auto max-w-4xl px-5 text-center lg:px-8">
-        <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-brand-100">
-          <Percent size={13} /> No subscriptions, ever
-        </span>
-        <h2 className="mt-5 font-display text-3xl font-bold sm:text-4xl">
-          How CashTrack makes money.
-        </h2>
-        <p className="mx-auto mt-4 max-w-xl text-brand-100">
-          We don't charge a monthly fee and we don't lock features behind a
-          paywall. Instead, CashTrack takes a small, capped fee only when a
-          transaction actually happens on the platform.
-        </p>
+        <AnimatedSection>
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-brand-100">
+            <Percent size={13} /> No subscriptions, ever
+          </span>
+          <h2 className="mt-5 font-display text-3xl font-bold sm:text-4xl">
+            How CashTrack makes money.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-brand-100">
+            We don't charge a monthly fee and we don't lock features behind a
+            paywall. Instead, CashTrack takes a small, capped fee only when a
+            transaction actually happens on the platform.
+          </p>
+        </AnimatedSection>
 
         <div className="mx-auto mt-10 grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl bg-white/10 p-6">
-            <p className="font-display text-3xl font-bold">1.5%</p>
-            <p className="mt-1 text-xs text-brand-100">per transaction</p>
-          </div>
-          <div className="rounded-2xl bg-white/10 p-6">
-            <p className="font-display text-3xl font-bold">{naira(200)}</p>
-            <p className="mt-1 text-xs text-brand-100">maximum fee, capped</p>
-          </div>
-          <div className="rounded-2xl bg-white/10 p-6">
-            <p className="font-display text-3xl font-bold">{NAIRA_MARK}0</p>
-            <p className="mt-1 text-xs text-brand-100">
-              to sign up or use the app
-            </p>
-          </div>
+          <AnimatedSection anim="pop" delay={0}>
+            <div className="rounded-2xl bg-white/10 p-6">
+              <p className="font-display text-3xl font-bold">1.5%</p>
+              <p className="mt-1 text-xs text-brand-100">per transaction</p>
+            </div>
+          </AnimatedSection>
+          <AnimatedSection anim="pop" delay={100}>
+            <div className="rounded-2xl bg-white/10 p-6">
+              <p className="font-display text-3xl font-bold">{naira(200)}</p>
+              <p className="mt-1 text-xs text-brand-100">maximum fee, capped</p>
+            </div>
+          </AnimatedSection>
+          <AnimatedSection anim="pop" delay={200}>
+            <div className="rounded-2xl bg-white/10 p-6">
+              <p className="font-display text-3xl font-bold">{NAIRA_MARK}0</p>
+              <p className="mt-1 text-xs text-brand-100">
+                to sign up or use the app
+              </p>
+            </div>
+          </AnimatedSection>
         </div>
 
-        <p className="mx-auto mt-8 max-w-xl text-sm text-brand-100">
-          That means every student and every parent gets the full product
-          wallets, budgets, insights, alerts and controls from day one. We only
-          make money when we're actually useful to you.
-        </p>
+        <AnimatedSection delay={300}>
+          <p className="mx-auto mt-8 max-w-xl text-sm text-brand-100">
+            That means every student and every parent gets the full product
+            wallets, budgets, insights, alerts and controls from day one. We only
+            make money when we're actually useful to you.
+          </p>
+        </AnimatedSection>
       </div>
     </section>
   );
@@ -598,21 +692,23 @@ function RevenueSection() {
 function CtaBanner({ onGoToSignup }) {
   return (
     <section className="mx-auto max-w-6xl px-5 py-16 lg:px-8 lg:py-24">
-      <div className="flex flex-col items-center gap-6 rounded-3xl bg-gradient-to-br from-brand-800 to-brand-600 px-8 py-14 text-center text-white sm:px-16">
-        <h2 className="font-display text-3xl font-bold sm:text-4xl">
-          Ready to sort your money out?
-        </h2>
-        <p className="max-w-md text-brand-100">
-          Join students and parents already using CashTrack to fund, track and
-          stay on budget together.
-        </p>
-        <button
-          onClick={onGoToSignup}
-          className="flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-brand-800 hover:bg-brand-50"
-        >
-          Create your free account <ArrowRight size={16} />
-        </button>
-      </div>
+      <AnimatedSection anim="scale-in">
+        <div className="flex flex-col items-center gap-6 rounded-3xl bg-gradient-to-br from-brand-800 to-brand-600 px-8 py-14 text-center text-white sm:px-16">
+          <h2 className="font-display text-3xl font-bold sm:text-4xl">
+            Ready to sort your money out?
+          </h2>
+          <p className="max-w-md text-brand-100">
+            Join students and parents already using CashTrack to fund, track and
+            stay on budget together.
+          </p>
+          <button
+            onClick={onGoToSignup}
+            className="flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-brand-800 hover:bg-brand-50"
+          >
+            Create your free account <ArrowRight size={16} />
+          </button>
+        </div>
+      </AnimatedSection>
     </section>
   );
 }
@@ -623,55 +719,57 @@ function Footer({ onGoToLogin, onGoToSignup }) {
   return (
     <footer className="border-t border-slate-200 bg-white py-12">
       <div className="mx-auto max-w-6xl px-5 lg:px-8">
-        <div className="flex flex-col items-start justify-between gap-8 sm:flex-row">
-          <div className="max-w-xs">
-            <Logo />
-            <p className="mt-3 text-sm text-slate-500">
-              A shared wallet for secondary school students and parents built
-              for school life in Nigeria.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-10">
-            <div>
-              <p className="text-xs font-semibold uppercase text-slate-400">
-                Product
+        <AnimatedSection>
+          <div className="flex flex-col items-start justify-between gap-8 sm:flex-row">
+            <div className="max-w-xs">
+              <Logo />
+              <p className="mt-3 text-sm text-slate-500">
+                A shared wallet for secondary school students and parents built
+                for school life in Nigeria.
               </p>
-              <div className="mt-3 flex flex-col gap-2 text-sm text-slate-600">
-                <a href="#how-it-works" className="hover:text-brand-700">
-                  How it works
-                </a>
-                <a href="#who-its-for" className="hover:text-brand-700">
-                  Who it's for
-                </a>
-                <a href="#revenue" className="hover:text-brand-700">
-                  How we make money
-                </a>
+            </div>
+            <div className="flex flex-wrap gap-10">
+              <div>
+                <p className="text-xs font-semibold uppercase text-slate-400">
+                  Product
+                </p>
+                <div className="mt-3 flex flex-col gap-2 text-sm text-slate-600">
+                  <a href="#how-it-works" className="hover:text-brand-700">
+                    How it works
+                  </a>
+                  <a href="#who-its-for" className="hover:text-brand-700">
+                    Who it's for
+                  </a>
+                  <a href="#revenue" className="hover:text-brand-700">
+                    How we make money
+                  </a>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase text-slate-400">
+                  Account
+                </p>
+                <div className="mt-3 flex flex-col gap-2 text-sm text-slate-600">
+                  <button
+                    onClick={onGoToLogin}
+                    className="text-left hover:text-brand-700"
+                  >
+                    Log In
+                  </button>
+                  <button
+                    onClick={onGoToSignup}
+                    className="text-left hover:text-brand-700"
+                  >
+                    Sign Up
+                  </button>
+                </div>
               </div>
             </div>
-            <div>
-              <p className="text-xs font-semibold uppercase text-slate-400">
-                Account
-              </p>
-              <div className="mt-3 flex flex-col gap-2 text-sm text-slate-600">
-                <button
-                  onClick={onGoToLogin}
-                  className="text-left hover:text-brand-700"
-                >
-                  Log In
-                </button>
-                <button
-                  onClick={onGoToSignup}
-                  className="text-left hover:text-brand-700"
-                >
-                  Sign Up
-                </button>
-              </div>
-            </div>
           </div>
-        </div>
+        </AnimatedSection>
         <div className="mt-10 flex flex-col-reverse items-center justify-between gap-4 border-t border-slate-100 pt-6 sm:flex-row">
           <p className="text-xs text-slate-400">
-            © 2026 CashTrack. Built for Nigerian students &amp; parents.
+            &copy; 2026 CashTrack. Built for Nigerian students &amp; parents.
           </p>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <ShieldCheck size={13} /> Bank-level security on every wallet
