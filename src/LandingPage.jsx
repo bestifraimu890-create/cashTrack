@@ -98,7 +98,7 @@ const NAIRA_MARK = (
 function Logo({ dark = false }) {
   return (
     <div className="flex items-center gap-2.5">
-      <img src="/cashtrack-logo.png" alt="CashTrack" className="h-10 w-auto" />
+      <img src="/cashtrack-logo.png" alt="CashTrack" className="h-14 w-auto" />
     </div>
   );
 }

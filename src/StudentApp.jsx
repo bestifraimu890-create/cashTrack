@@ -59,7 +59,7 @@ function Sidebar({ active, onNavigate, mobileOpen, setMobileOpen, onSwitchRole, 
   const content = (
     <div className="flex h-full flex-col bg-white">
       <div className="flex items-center gap-2 px-6 py-6">
-        <img src="/cashtrack-logo.png" alt="CashTrack" className="h-10 w-auto" />
+        <img src="/cashtrack-logo.png" alt="CashTrack" className="h-14 w-auto" />
         <p className="text-[11px] font-medium text-slate-400 leading-tight">Student</p>
       </div>
 
