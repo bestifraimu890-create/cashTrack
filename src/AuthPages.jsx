@@ -88,7 +88,7 @@ async function ensureProfile(user) {
   const { error } = await supabase.from("profiles").insert(profile);
   if (error) return error;
 
-  if (role === "student") {
+  if (role === "student" || role === "parent") {
     const { error: walletError } = await supabase.from("wallets").insert({ owner_id: user.id });
     if (walletError) return walletError;
   }

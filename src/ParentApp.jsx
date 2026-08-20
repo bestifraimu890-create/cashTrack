@@ -11,6 +11,8 @@ import {
   PieChart as PieChartIcon,
 } from "lucide-react";
 import { CATEGORIES, naira, Card, CategoryIcon, ProgressBar, initialsOf } from "./shared.jsx";
+import { supabase } from "./supabase/client.js";
+import { edgeCall } from "./supabase/edge.js";
 
 /* ---------------------------------- data --------------------------------- */
 
@@ -382,109 +384,267 @@ function ChildrenPage({ children }) {
 
 /* -------------------------------- fund wallet -------------------------------- */
 
-function FundWalletPage({ children, onFund }) {
-  const [childId, setChildId] = useState(children[0]?.id ?? "");
+function FundWalletPage({ user }) {
+  const [wallet, setWallet] = useState(null);
+  const [account, setAccount] = useState(null);
   const [amount, setAmount] = useState("");
+  const [children, setChildren] = useState([]);
+  const [childId, setChildId] = useState("");
+  const [sendAmount, setSendAmount] = useState("");
   const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
   const [banner, setBanner] = useState(null);
+  const [copied, setCopied] = useState(false);
   const quickAmounts = [500, 1000, 2000, 5000];
 
-  const submit = (e) => {
+  const load = async () => {
+    const { data: w } = await supabase
+      .from("wallets")
+      .select("*")
+      .eq("owner_id", user.id)
+      .maybeSingle();
+    setWallet(w);
+    if (w) {
+      const { data: a } = await supabase
+        .from("monnify_accounts")
+        .select("*")
+        .eq("wallet_id", w.id)
+        .maybeSingle();
+      setAccount(a);
+    }
+    const { data: links } = await supabase
+      .from("households")
+      .select("child_id")
+      .eq("parent_id", user.id);
+    if (links?.length) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name")
+        .in("id", links.map((l) => l.child_id));
+      setChildren(profiles ?? []);
+      setChildId((prev) => prev || profiles?.[0]?.id || "");
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const getOrCreateAccount = async () => {
+    setLoading(true);
+    setBanner(null);
+    try {
+      const r = await edgeCall("fund-wallet", { action: "reserve" });
+      setAccount(r.account);
+      setWallet((prev) => prev ?? {});
+    } catch (e) {
+      setBanner({ type: "error", text: e.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const payByCard = async (e) => {
     e.preventDefault();
     const value = parseFloat(amount);
-    const child = children.find((c) => c.id === childId);
-    if (!child || !value || value <= 0) {
-      setBanner({ type: "error", text: "Choose a child and a valid amount." });
+    if (!value || value <= 0) {
+      setBanner({ type: "error", text: "Enter a valid amount." });
       return;
     }
-    onFund(childId, value, note);
-    setBanner({ type: "success", text: `${naira(value)} sent to ${child.name}.` });
-    setAmount("");
-    setNote("");
+    setLoading(true);
+    setBanner(null);
+    try {
+      const r = await edgeCall("fund-wallet", { action: "checkout", amount: value });
+      window.open(r.checkoutUrl, "_blank");
+      setBanner({ type: "success", text: "Payment page opened. Your wallet is credited automatically once payment completes." });
+      setAmount("");
+      setTimeout(load, 2000);
+    } catch (err) {
+      setBanner({ type: "error", text: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendToChild = async (e) => {
+    e.preventDefault();
+    const value = parseFloat(sendAmount);
+    if (!childId || !value || value <= 0) {
+      setBanner({ type: "error", text: "Choose a child and enter a valid amount." });
+      return;
+    }
+    setSending(true);
+    setBanner(null);
+    try {
+      await edgeCall("send-to-child", { childId, amount: value, note });
+      setBanner({ type: "success", text: `${naira(value)} sent to your child's wallet.` });
+      setSendAmount("");
+      setNote("");
+      setTimeout(load, 500);
+    } catch (err) {
+      setBanner({ type: "error", text: err.message });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const copyNumber = () => {
+    if (!account) return;
+    navigator.clipboard.writeText(account.account_number);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-      <Card className="p-6 lg:col-span-2">
-        <h3 className="font-semibold text-slate-900">Send money to a child's wallet</h3>
-        <p className="mt-1 text-sm text-slate-500">Funds are available in their wallet immediately.</p>
+    <div className="space-y-5">
+      {banner && (
+        <div
+          className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+            banner.type === "success" ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-600"
+          }`}
+        >
+          {banner.type === "success" ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+          {banner.text}
+        </div>
+      )}
 
-        {banner && (
-          <div
-            className={`mt-4 flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-              banner.type === "success" ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-600"
-            }`}
-          >
-            {banner.type === "success" ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
-            {banner.text}
-          </div>
-        )}
-
-        <form onSubmit={submit} className="mt-5 space-y-4">
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">Child</label>
-            <select
-              value={childId}
-              onChange={(e) => setChildId(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
-            >
-              {children.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">Amount (₦)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
-            />
-            <div className="mt-2 flex flex-wrap gap-2">
-              {quickAmounts.map((a) => (
-                <button
-                  key={a}
-                  type="button"
-                  onClick={() => setAmount(String(a))}
-                  className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-500 hover:border-brand-400 hover:text-brand-700"
-                >
-                  {naira(a)}
-                </button>
-              ))}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <Card className="p-6 lg:col-span-2">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="font-semibold text-slate-900">Your wallet</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Fund it by transfer or card, then send money to your children's wallets.
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-slate-900">{naira(Number(wallet?.balance ?? 0))}</p>
+              <p className="text-xs text-slate-400">Available balance</p>
             </div>
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">Note (optional)</label>
-            <input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Weekly allowance"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
-            />
-          </div>
-          <button type="submit" className="w-full rounded-lg bg-brand-700 py-2.5 text-sm font-semibold text-white">
-            Send Funds
-          </button>
-        </form>
-      </Card>
 
-      <Card className="p-6">
-        <h3 className="font-semibold text-slate-900">Funding Source</h3>
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-100 p-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white">
-            GTB
+          <div className="mt-6 rounded-xl border border-dashed border-brand-300 bg-brand-50/50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">
+              Transfer to this account (free, instant)
+            </p>
+            {account ? (
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <div>
+                  <p className="text-2xl font-bold tracking-widest text-slate-900">{account.account_number}</p>
+                  <p className="text-xs text-slate-500">
+                    {account.account_name} · {account.bank_name}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={copyNumber}
+                  className="rounded-lg bg-brand-700 px-3 py-2 text-xs font-semibold text-white"
+                >
+                  {copied ? "Copied!" : "Copy number"}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={getOrCreateAccount}
+                disabled={loading}
+                className="mt-2 rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {loading ? "Creating…" : "Get my dedicated account number"}
+              </button>
+            )}
           </div>
-          <div>
-            <p className="text-sm font-medium text-slate-700">GTBank •••• 4821</p>
-            <p className="text-xs text-slate-400">Default payment method</p>
-          </div>
-        </div>
-        <button className="mt-3 text-xs font-semibold text-brand-700">+ Add another payment method</button>
-      </Card>
+
+          <form onSubmit={payByCard} className="mt-6 space-y-4">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">
+                Or pay by card / USSD ({naira(0)} instantly credited)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {quickAmounts.map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => setAmount(String(a))}
+                    className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-500 hover:border-brand-400 hover:text-brand-700"
+                  >
+                    {naira(a)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-brand-700 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {loading ? "Starting payment…" : "Pay by Card"}
+            </button>
+          </form>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="font-semibold text-slate-900">Send to a child</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Moves money from your wallet into your child's wallet. They can then withdraw to their bank within your limits.
+          </p>
+          <form onSubmit={sendToChild} className="mt-4 space-y-4">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">Child</label>
+              <select
+                value={childId}
+                onChange={(e) => setChildId(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+              >
+                {children.length === 0 && <option value="">No children linked yet</option>}
+                {children.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.first_name} {c.last_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">Amount (₦)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={sendAmount}
+                onChange={(e) => setSendAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">Note (optional)</label>
+              <input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="e.g. Weekly allowance"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={sending || children.length === 0}
+              className="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {sending ? "Sending…" : "Send Funds"}
+            </button>
+          </form>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -518,13 +678,62 @@ function AllowanceHistoryPage({ history }) {
 
 /* ------------------------------- spending limits ------------------------------ */
 
-function SpendingLimitsPage({ children, onUpdateLimits }) {
+function SpendingLimitsPage({ user }) {
+  const [kids, setKids] = useState([]);
   const [banner, setBanner] = useState(null);
+  const [savingId, setSavingId] = useState(null);
 
-  const handleSave = (id, field, value) => {
+  const load = async () => {
+    const { data: links } = await supabase
+      .from("households")
+      .select("child_id")
+      .eq("parent_id", user.id);
+    if (!links?.length) return;
+    const ids = links.map((l) => l.child_id);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, school")
+      .in("id", ids);
+    const { data: wallets } = await supabase
+      .from("wallets")
+      .select("owner_id, weekly_limit, monthly_limit, status")
+      .in("owner_id", ids);
+    setKids(
+      (profiles ?? []).map((p) => {
+        const w = (wallets ?? []).find((x) => x.owner_id === p.id);
+        return {
+          id: p.id,
+          name: `${p.first_name} ${p.last_name}`,
+          school: p.school,
+          weeklyLimit: Number(w?.weekly_limit ?? 5000),
+          monthlyLimit: Number(w?.monthly_limit ?? 18000),
+          status: w?.status ?? "active",
+        };
+      }),
+    );
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleSave = async (id, field, value) => {
     const num = parseFloat(value);
-    if (Number.isNaN(num) || num < 0) return;
-    onUpdateLimits(id, field, num);
+    if (Number.isNaN(num) || num <= 0) return;
+    setSavingId(id);
+    setBanner(null);
+    try {
+      await edgeCall("update-child-limits", {
+        childId: id,
+        ...(field === "weeklyLimit" ? { weeklyLimit: num } : { monthlyLimit: num }),
+      });
+      setBanner(`${field === "weeklyLimit" ? "Weekly" : "Monthly"} limit updated.`);
+      load();
+    } catch (e) {
+      setBanner(`Could not save: ${e.message}`);
+    } finally {
+      setSavingId(null);
+    }
   };
 
   return (
@@ -534,20 +743,24 @@ function SpendingLimitsPage({ children, onUpdateLimits }) {
           <CheckCircle2 size={16} /> {banner}
         </div>
       )}
-      {children.map((c) => (
+      {kids.length === 0 && (
+        <Card className="p-10 text-center text-sm text-slate-400">
+          No children linked yet. Link a child to set their withdrawal limits.
+        </Card>
+      )}
+      {kids.map((c) => (
         <Card key={c.id} className="p-6">
           <div className="mb-4 flex items-center gap-3">
             <ChildAvatar child={c} />
             <div>
               <p className="font-semibold text-slate-900">{c.name}</p>
-              <p className="text-xs text-slate-400">{c.type}</p>
+              <p className="text-xs text-slate-400">{c.school || "Student"}</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {[
-              { key: "dailyLimit", label: "Daily Limit" },
-              { key: "weeklyLimit", label: "Weekly Limit" },
-              { key: "monthlyLimit", label: "Monthly Limit" },
+              { key: "weeklyLimit", label: "Weekly Withdrawal Limit" },
+              { key: "monthlyLimit", label: "Monthly Withdrawal Limit" },
             ].map(({ key, label }) => (
               <div key={key}>
                 <label className="mb-1 block text-xs font-semibold text-slate-500">{label}</label>
@@ -557,11 +770,9 @@ function SpendingLimitsPage({ children, onUpdateLimits }) {
                     type="number"
                     min="0"
                     defaultValue={c[key]}
-                    onBlur={(e) => {
-                      handleSave(c.id, key, e.target.value);
-                      setBanner(`${label} updated for ${c.name}.`);
-                    }}
-                    className="w-full bg-transparent text-sm outline-none"
+                    disabled={savingId === c.id}
+                    onBlur={(e) => handleSave(c.id, key, e.target.value)}
+                    className="w-full bg-transparent text-sm outline-none disabled:opacity-50"
                   />
                 </div>
               </div>
@@ -945,11 +1156,11 @@ export default function ParentApp({ user, onSwitchRole, onLogout }) {
       case "children":
         return <ChildrenPage children={children} />;
       case "fund":
-        return <FundWalletPage children={children} onFund={fundWallet} />;
+        return <FundWalletPage user={user} />;
       case "allowance":
         return <AllowanceHistoryPage history={history} />;
       case "limits":
-        return <SpendingLimitsPage children={children} onUpdateLimits={updateLimits} />;
+        return <SpendingLimitsPage user={user} />;
       case "transactions":
         return <TransactionsPage transactions={TRANSACTIONS} children={children} />;
       case "insights":
