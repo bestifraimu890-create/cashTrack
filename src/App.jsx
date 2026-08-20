@@ -1,23 +1,79 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import LandingPage from "./LandingPage.jsx";
 import { LoginPage, SignUpPage, ResetPasswordPage } from "./AuthPages.jsx";
 import StudentApp from "./StudentApp.jsx";
 import ParentApp from "./ParentApp.jsx";
 import AdminApp from "./AdminApp.jsx";
-
-const ROLES = ["student", "parent", "admin"];
+import { supabase } from "./supabase/client.js";
 
 export default function App() {
   // "landing" | "login" | "signup" | "reset" | "app"
   const [view, setView] = useState("landing");
+  const [user, setUser] = useState(null);
   const [role, setRole] = useState("student");
+  const [error, setError] = useState("");
 
-  const enterApp = (chosenRole) => {
-    setRole(chosenRole);
-    setView("app");
+  useEffect(() => {
+    // True only when the user arrived via a magic-link email (tokens in the URL hash)
+    const isMagicLink = /[#?]access_token=/.test(window.location.hash);
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setUser(session.user);
+        // Fresh magic-link sign-in: hand off to the login page, which finishes
+        // profile setup and routes in. Everything else (tab refocus, token
+        // refresh, restore) must NOT change the current view.
+        if (isMagicLink) setView("login");
+        // Fetch profile in background — no auto-route, just keep state fresh
+        supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data?.role) setRole(data.role);
+          });
+      } else {
+        setUser(null);
+        setRole("student");
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const onLogin = async (u) => {
+    setUser(u);
+    // Profile may not exist yet right after OTP verification — retry briefly
+    let profile = null;
+    for (let i = 0; i < 8; i++) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("role, first_name, last_name")
+        .eq("id", u.id)
+        .maybeSingle();
+      if (data) {
+        profile = data;
+        break;
+      }
+      if (i < 7) await new Promise((r) => setTimeout(r, 250));
+    }
+
+if (profile?.role) {
+      setRole(profile.role);
+      setView("app");
+    } else {
+      // No profile — the login page shows the OTP screen to finish verification
+      setError("Please verify your email to continue.");
+      setView("login");
+    }
   };
-  const logout = () => setView("landing");
-  const nextRole = () => setRole((r) => ROLES[(ROLES.indexOf(r) + 1) % ROLES.length]);
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setRole("student");
+    setView("landing");
+  };
 
   if (view === "landing") {
     return <LandingPage onGoToLogin={() => setView("login")} onGoToSignup={() => setView("signup")} />;
@@ -25,20 +81,21 @@ export default function App() {
   if (view === "login") {
     return (
       <LoginPage
-        onLogin={enterApp}
+        onLogin={onLogin}
         onGoToSignup={() => setView("signup")}
         onGoToReset={() => setView("reset")}
+        error={error}
       />
     );
   }
   if (view === "signup") {
-    return <SignUpPage onSignup={enterApp} onGoToLogin={() => setView("login")} />;
+    return <SignUpPage onGoToLogin={() => setView("login")} />;
   }
   if (view === "reset") {
     return <ResetPasswordPage onGoToLogin={() => setView("login")} />;
   }
 
-  if (role === "student") return <StudentApp onSwitchRole={nextRole} onLogout={logout} />;
-  if (role === "parent") return <ParentApp onSwitchRole={nextRole} onLogout={logout} />;
-  return <AdminApp onSwitchRole={nextRole} onLogout={logout} />;
+  if (role === "student") return <StudentApp user={user} onLogout={logout} />;
+  if (role === "parent") return <ParentApp user={user} onLogout={logout} />;
+  return <AdminApp user={user} onLogout={logout} />;
 }

@@ -10,7 +10,7 @@ import {
   Menu, Baby, GraduationCap, PlusCircle, Check,
   PieChart as PieChartIcon,
 } from "lucide-react";
-import { CATEGORIES, naira, Card, CategoryIcon, ProgressBar } from "./shared.jsx";
+import { CATEGORIES, naira, Card, CategoryIcon, ProgressBar, initialsOf } from "./shared.jsx";
 
 /* ---------------------------------- data --------------------------------- */
 
@@ -143,7 +143,7 @@ function Sidebar({ active, onNavigate, mobileOpen, setMobileOpen, onSwitchRole, 
 
 /* --------------------------------- topbar ---------------------------------- */
 
-function Topbar({ title, onMenu }) {
+function Topbar({ title, onMenu, user }) {
   return (
     <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-paper/80 px-4 py-4 backdrop-blur lg:px-8">
       <button onClick={onMenu} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden">
@@ -160,8 +160,11 @@ function Topbar({ title, onMenu }) {
       <button className="ml-auto relative rounded-full p-2 text-slate-500 hover:bg-slate-100">
         <Bell size={19} />
       </button>
-      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white">
-        NO
+      <div
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white"
+        title={(user?.user_metadata?.first_name || "") + " " + (user?.user_metadata?.last_name || "")}
+      >
+        {initialsOf(user)}
       </div>
     </div>
   );
@@ -205,7 +208,7 @@ function EmptyState({ icon: Icon, title, body, actionLabel, onAction }) {
 
 /* -------------------------------- dashboard -------------------------------- */
 
-function DashboardPage({ children, alerts, onNavigate }) {
+function DashboardPage({ children, alerts, onNavigate, user }) {
   const totalBalance = children.reduce((s, c) => s + c.balance, 0);
   const totalWeeklySpent = children.reduce((s, c) => s + c.weeklySpent, 0);
   const totalWeeklyLimit = children.reduce((s, c) => s + c.weeklyLimit, 0);
@@ -213,7 +216,7 @@ function DashboardPage({ children, alerts, onNavigate }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-display text-2xl font-bold text-slate-900">Welcome back, {PARENT.name.split(" ")[0]}.</h2>
+        <h2 className="font-display text-2xl font-bold text-slate-900">Welcome back, {user?.user_metadata?.first_name || "there"}.</h2>
         <p className="mt-1 text-sm text-slate-500">
           Here's how {children.length === 1 ? "your child is" : "your children are"} doing this week.
         </p>
@@ -913,7 +916,7 @@ function ParentalControlsPage({ children }) {
 
 /* ------------------------------------- app -------------------------------------- */
 
-export default function ParentApp({ onSwitchRole, onLogout }) {
+export default function ParentApp({ user, onSwitchRole, onLogout }) {
   const [page, setPage] = useState("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [children, setChildren] = useState(INITIAL_CHILDREN);
@@ -943,7 +946,7 @@ export default function ParentApp({ onSwitchRole, onLogout }) {
   const renderPage = () => {
     switch (page) {
       case "dashboard":
-        return <DashboardPage children={children} alerts={alerts} onNavigate={setPage} />;
+        return <DashboardPage children={children} alerts={alerts} onNavigate={setPage} user={user} />;
       case "children":
         return <ChildrenPage children={children} />;
       case "fund":
@@ -977,7 +980,7 @@ export default function ParentApp({ onSwitchRole, onLogout }) {
         onLogout={onLogout}
       />
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <Topbar title={pageTitle(page)} onMenu={() => setMobileOpen(true)} />
+        <Topbar title={pageTitle(page)} onMenu={() => setMobileOpen(true)} user={user} />
         <main className="flex-1 px-4 py-6 lg:px-8">
           <h1 className="mb-6 hidden font-display text-2xl font-bold text-slate-900 lg:block">{pageTitle(page)}</h1>
           {renderPage()}

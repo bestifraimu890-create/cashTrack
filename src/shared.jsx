@@ -20,6 +20,17 @@ export const CATEGORIES = {
 export const naira = (n) =>
   `₦${Math.abs(n).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+// "Jane Doe" -> "JD", falls back to email prefix / "CT"
+export const initialsOf = (user) => {
+  const m = user?.user_metadata || {};
+  const first = (m.first_name || "").trim();
+  const last = (m.last_name || "").trim();
+  if (first && last) return (first[0] + last[0]).toUpperCase();
+  if (first) return first.slice(0, 2).toUpperCase();
+  if (user?.email) return user.email.slice(0, 2).toUpperCase();
+  return "CT";
+};
+
 export function Card({ className = "", children }) {
   return (
     <div className={`bg-white rounded-2xl border border-slate-200 shadow-card ${className}`}>

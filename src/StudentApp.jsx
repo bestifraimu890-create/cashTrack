@@ -10,7 +10,7 @@ import {
   X, ChevronRight, Sparkles, Lock, Menu, ShieldCheck, Users,
   PieChart as PieChartIcon,
 } from "lucide-react";
-import { CATEGORIES, naira, Card, CategoryIcon, ProgressBar } from "./shared.jsx";
+import { CATEGORIES, naira, Card, CategoryIcon, ProgressBar, initialsOf } from "./shared.jsx";
 
 /* ---------------------------------- data --------------------------------- */
 
@@ -124,7 +124,7 @@ function Sidebar({ active, onNavigate, mobileOpen, setMobileOpen, onSwitchRole, 
 
 /* --------------------------------- topbar ---------------------------------- */
 
-function Topbar({ title, onMenu }) {
+function Topbar({ title, onMenu, user }) {
   return (
     <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-paper/80 px-4 py-4 backdrop-blur lg:px-8">
       <button onClick={onMenu} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden">
@@ -141,8 +141,11 @@ function Topbar({ title, onMenu }) {
       <button className="ml-auto relative rounded-full p-2 text-slate-500 hover:bg-slate-100">
         <Bell size={19} />
       </button>
-      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white">
-        CO
+      <div
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white"
+        title={(user?.user_metadata?.first_name || "") + " " + (user?.user_metadata?.last_name || "")}
+      >
+        {initialsOf(user)}
       </div>
     </div>
   );
@@ -969,7 +972,7 @@ function ProfilePage() {
 
 /* ----------------------------------- app ------------------------------------ */
 
-export default function StudentApp({ onSwitchRole, onLogout }) {
+export default function StudentApp({ user, onSwitchRole, onLogout }) {
   const [page, setPage] = useState("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [transactions, setTransactions] = useState(INITIAL_TX);
@@ -1079,7 +1082,7 @@ export default function StudentApp({ onSwitchRole, onLogout }) {
         onLogout={onLogout}
       />
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <Topbar title={pageTitle(page)} onMenu={() => setMobileOpen(true)} />
+        <Topbar title={pageTitle(page)} onMenu={() => setMobileOpen(true)} user={user} />
         <main className="flex-1 px-4 py-6 lg:px-8">
           <h1 className="mb-6 hidden font-display text-2xl font-bold text-slate-900 lg:block">{pageTitle(page)}</h1>
           {renderPage()}
