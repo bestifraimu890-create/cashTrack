@@ -12,10 +12,7 @@ function AuthShell({ title, subtitle, badgeTitle, badgeText, children }) {
         <div className="absolute bottom-[-4rem] right-[-4rem] h-96 w-96 rounded-full bg-brand-900/30" />
         <div className="relative z-10 flex h-full flex-col justify-between p-10">
           <div className="flex items-center gap-2 text-white">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
-              <PiggyBank size={18} />
-            </div>
-            <span className="text-lg font-bold font-display">CashTrack</span>
+            <img src="/cashtrack-logo.png" alt="CashTrack" className="h-10 w-auto" />
           </div>
           <div className="rounded-2xl bg-white/95 p-6 shadow-xl">
             <p className="font-display text-lg font-bold text-slate-900">{badgeTitle}</p>

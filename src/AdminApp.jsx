@@ -64,13 +64,8 @@ function Sidebar({ active, onNavigate, mobileOpen, setMobileOpen, onSwitchRole, 
   const content = (
     <div className="flex h-full flex-col bg-white">
       <div className="flex items-center gap-2 px-6 py-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-700 text-white">
-          <ShieldCheck size={18} />
-        </div>
-        <div>
-          <p className="text-lg font-bold font-display leading-tight text-slate-900">CashTrack</p>
-          <p className="text-[11px] font-medium text-slate-400 leading-tight">Super Admin</p>
-        </div>
+        <img src="/cashtrack-logo.png" alt="CashTrack" className="h-10 w-auto" />
+        <p className="text-[11px] font-medium text-slate-400 leading-tight">Super Admin</p>
       </div>
 
       <nav className="flex-1 space-y-1 px-3">

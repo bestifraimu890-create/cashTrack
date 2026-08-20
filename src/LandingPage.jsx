@@ -98,16 +98,7 @@ const NAIRA_MARK = (
 function Logo({ dark = false }) {
   return (
     <div className="flex items-center gap-2.5">
-      <div
-        className={`flex h-9 w-9 items-center justify-center rounded-xl font-display text-lg font-bold ${
-          dark ? "bg-white text-brand-800" : "bg-brand-700 text-white"
-        }`}
-      ><PiggyBank /></div>
-      <span
-        className={`font-display text-lg font-bold ${dark ? "text-white" : "text-slate-900"}`}
-      >
-        CashTrack
-      </span>
+      <img src="/cashtrack-logo.png" alt="CashTrack" className="h-10 w-auto" />
     </div>
   );
 }
