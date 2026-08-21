@@ -66,27 +66,34 @@ function LoadingButton({ children, loading }) {
 async function ensureProfile(user) {
   const { data: existing } = await supabase
     .from("profiles")
-    .select("id")
+    .select("id, role")
     .eq("id", user.id)
     .maybeSingle();
-  if (existing) return null;
+  if (existing?.role) return null;
 
   const m = user.user_metadata || {};
-  const role = m.role === "parent" ? "parent" : "student";
-  const profile = {
-    id: user.id,
-    first_name: m.first_name || "New",
-    last_name: m.last_name || "User",
-    role,
-    school: m.school || null,
-    phone: m.phone || null,
-  };
-  const { error } = await supabase.from("profiles").insert(profile);
-  if (error) return error;
+  const role = m.role === "parent" ? "parent" : m.role === "admin" ? "admin" : "student";
 
-  if (role === "student" || role === "parent") {
-    const { error: walletError } = await supabase.from("wallets").insert({ owner_id: user.id });
-    if (walletError) return walletError;
+  if (!existing) {
+    await supabase.from("profiles").upsert({
+      id: user.id,
+      first_name: m.first_name || "New",
+      last_name: m.last_name || "User",
+      role,
+      school: m.school || null,
+      phone: m.phone || null,
+    }, { onConflict: "id" });
+  }
+
+  if (role !== "admin") {
+    const { data: hasWallet } = await supabase
+      .from("wallets")
+      .select("id")
+      .eq("owner_id", user.id)
+      .maybeSingle();
+    if (!hasWallet) {
+      await supabase.from("wallets").upsert({ owner_id: user.id }, { onConflict: "owner_id" });
+    }
   }
   return null;
 }
