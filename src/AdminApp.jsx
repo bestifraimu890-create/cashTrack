@@ -21,14 +21,6 @@ const FEE_RATE = 0.015; // 1.5%
 const FEE_CAP = 200; // ₦200 max fee per transaction
 const feeFor = (amount) => Math.round(Math.min(Math.abs(amount) * FEE_RATE, FEE_CAP));
 
-// A freshly-deployed platform starts with no users, wallets or transactions.
-// Everything on this dashboard is computed live from that ledger below —
-// nothing here is a fabricated headline number.
-const INITIAL_USERS = [];
-const INITIAL_WALLETS = [];
-const INITIAL_TRANSACTIONS = [];
-const REPORTS = [];
-
 const NAV = [
   { key: "dashboard", label: "Dashboard", icon: LayoutGrid },
   { key: "users", label: "Users", icon: Users },
@@ -738,20 +730,80 @@ function PayoutsPage() {
 export default function AdminApp({ user, onSwitchRole, onLogout }) {
   const [page, setPage] = useState("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [users, setUsers] = useState(INITIAL_USERS);
-  const [wallets, setWallets] = useState(INITIAL_WALLETS);
-  const [transactions] = useState(INITIAL_TRANSACTIONS);
+  const [users, setUsers] = useState([]);
+  const [wallets, setWallets] = useState([]);
+  const [transactions, setTransactions] = useState([]);
 
-  const toggleUserStatus = (id) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, status: u.status === "active" ? "suspended" : "active" } : u))
-    );
+  const loadAll = async () => {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, role, school, created_at");
+    const enriched = (profiles ?? []).map((p) => ({
+      id: p.id,
+      name: `${p.first_name} ${p.last_name}`,
+      email: "",
+      role: p.role === "student" ? "Student" : p.role === "parent" ? "Parent" : "Admin",
+      joined: new Date(p.created_at).toLocaleDateString("en-NG"),
+      status: "active",
+    }));
+    setUsers(enriched);
+
+    const { data: w } = await supabase
+      .from("wallets")
+      .select("id, owner_id, balance, status, profiles!wallets_owner_id_fkey(first_name, last_name)");
+    const enrichedW = (w ?? []).map((w) => ({
+      id: w.id,
+      ownerId: w.owner_id,
+      user: `${w.profiles?.first_name ?? ""} ${w.profiles?.last_name ?? ""}`.trim(),
+      balance: Number(w.balance),
+      status: w.status,
+    }));
+    setWallets(enrichedW);
+
+    const walletIds = (w ?? []).map((x) => x.id);
+    if (walletIds.length > 0) {
+      const { data: tx } = await supabase
+        .from("transactions")
+        .select("id, merchant, category, amount, fee, created_at, wallet_id, wallets!inner(owner_id)")
+        .in("wallet_id", walletIds)
+        .order("created_at", { ascending: false });
+      setTransactions(
+        (tx ?? []).map((t) => {
+          const wallet = enrichedW.find((x) => x.id === t.wallet_id);
+          return {
+            id: t.id,
+            merchant: t.merchant,
+            category: t.category,
+            amount: Number(t.amount),
+            fee: Number(t.fee),
+            date: new Date(t.created_at).toLocaleDateString("en-NG"),
+            user: wallet?.user ?? "Unknown",
+          };
+        })
+      );
+    }
   };
 
-  const toggleWalletFreeze = (id) => {
-    setWallets((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, status: w.status === "frozen" ? "active" : "frozen" } : w))
-    );
+  useEffect(() => {
+    if (user) loadAll();
+  }, [user?.id]);
+
+  const toggleUserStatus = async (id) => {
+    const u = users.find((x) => x.id === id);
+    if (!u) return;
+    const newStatus = u.status === "active" ? "suspended" : "active";
+    setUsers((prev) => prev.map((x) => (x.id === id ? { ...x, status: newStatus } : x)));
+  };
+
+  const toggleWalletFreeze = async (id) => {
+    const w = wallets.find((x) => x.id === id);
+    if (!w) return;
+    const newStatus = w.status === "frozen" ? "active" : "frozen";
+    await supabase
+      .from("wallets")
+      .update({ status: newStatus })
+      .eq("id", id);
+    setWallets((prev) => prev.map((x) => (x.id === id ? { ...x, status: newStatus } : x)));
   };
 
   const renderPage = () => {
@@ -769,7 +821,7 @@ export default function AdminApp({ user, onSwitchRole, onLogout }) {
       case "revenue":
         return <RevenuePage transactions={transactions} />;
       case "reports":
-        return <ReportsPage reports={REPORTS} />;
+        return <ReportsPage reports={[]} />;
       default:
         return null;
     }

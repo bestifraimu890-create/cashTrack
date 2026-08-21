@@ -16,18 +16,9 @@ import { edgeCall } from "./supabase/edge.js";
 
 /* ---------------------------------- data --------------------------------- */
 
-const STUDENT = {
-  name: "",
-  school: "",
-  parent: "",
-};
-
 // Fresh accounts start with no history — every list below fills in as the
-// student logs real activity. See the *EmptyState components for what
-// renders in the meantime.
-const INITIAL_TX = [];
-const INITIAL_BUDGET_LIMITS = {};
-const NOTIFICATIONS = [];
+// student logs real activity from Supabase. See the *EmptyState components
+// for what renders in the meantime.
 
 const NAV = [
   { key: "dashboard", label: "Dashboard", icon: LayoutGrid },
@@ -171,7 +162,7 @@ function EmptyState({ icon: Icon, title, body, actionLabel, onAction }) {
   );
 }
 
-function DashboardPage({ transactions, budgets, walletBalance, weeklySpent, weeklyLimit, onNavigate }) {
+function DashboardPage({ studentName, transactions, budgets, walletBalance, weeklySpent, weeklyLimit, parentName, onNavigate }) {
   const recent = transactions.slice(0, 4);
   const overBudget = budgets.find((b) => b.spent > b.budgeted);
   const pctUsed = weeklyLimit ? Math.min(100, Math.round((weeklySpent / weeklyLimit) * 100)) : 0;
@@ -179,7 +170,7 @@ function DashboardPage({ transactions, budgets, walletBalance, weeklySpent, week
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-display text-2xl font-bold text-slate-900">Welcome back, {STUDENT.name.split(" ")[0]}.</h2>
+        <h2 className="font-display text-2xl font-bold text-slate-900">Welcome back, {studentName}.</h2>
         <p className="mt-1 text-sm text-slate-500">Here's where things stand right now.</p>
       </div>
 
@@ -253,7 +244,7 @@ function DashboardPage({ transactions, budgets, walletBalance, weeklySpent, week
               <div className="h-2 rounded-full bg-white" style={{ width: `${pctUsed}%` }} />
             </div>
             <p className="mt-1 text-xs text-brand-100">
-              {naira(weeklySpent)} of {naira(weeklyLimit)} · set by {STUDENT.parent}
+              {naira(weeklySpent)} of {naira(weeklyLimit)} · set by {parentName}
             </p>
           </div>
           <button
@@ -327,7 +318,7 @@ function DashboardPage({ transactions, budgets, walletBalance, weeklySpent, week
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-800">{t.merchant}</p>
                     <p className="text-xs text-slate-400">
-                      {t.category} · {t.date}, {t.time}
+                      {t.category} · {new Date(t.created_at).toLocaleDateString("en-NG")}
                     </p>
                   </div>
                   <span className={`text-sm font-semibold tabular-nums ${t.amount > 0 ? "text-mint-600" : "text-slate-800"}`}>
@@ -347,14 +338,14 @@ function DashboardPage({ transactions, budgets, walletBalance, weeklySpent, week
 
 /* ---------------------------------- wallet ---------------------------------- */
 
-function WalletPage({ walletBalance, weeklySpent, weeklyLimit, monthlySpent, monthlyLimit }) {
+function WalletPage({ walletBalance, weeklySpent, weeklyLimit, monthlySpent, monthlyLimit, parentName }) {
   const [showFund, setShowFund] = useState(false);
   return (
     <div className="space-y-6">
       <Card className="bg-gradient-to-br from-brand-800 to-brand-600 p-6 text-white">
         <p className="text-xs font-semibold uppercase tracking-wide text-brand-100">Available Balance</p>
         <p className="mt-2 text-3xl font-bold font-display tabular-nums">{naira(walletBalance)}</p>
-        <p className="mt-1 text-xs text-brand-100">Linked to {STUDENT.parent}'s CashTrack account</p>
+        <p className="mt-1 text-xs text-brand-100">Linked to {parentName}'s CashTrack account</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             onClick={() => setShowFund(true)}
@@ -407,7 +398,7 @@ function WalletPage({ walletBalance, weeklySpent, weeklyLimit, monthlySpent, mon
           <div>
             <p className="text-sm font-semibold text-slate-800">Limits set by your parent</p>
             <p className="mt-1 text-sm text-slate-500">
-              {STUDENT.parent} controls your daily, weekly and monthly spending limits. Ask them to adjust these
+              {parentName} controls your daily, weekly and monthly spending limits. Ask them to adjust these
               from their Parental Controls dashboard if you need more room this month.
             </p>
           </div>
@@ -472,7 +463,7 @@ function TransactionsPage({ transactions }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-800">{t.merchant}</p>
                   <p className="text-xs text-slate-400">
-                    {t.category} · {t.date}, {t.time}
+                    {t.category} · {new Date(t.created_at).toLocaleDateString("en-NG")}
                   </p>
                 </div>
                 <span className={`text-sm font-semibold ${t.amount > 0 ? "text-mint-600" : "text-slate-800"}`}>
@@ -866,7 +857,7 @@ function InsightsPage({ budgets, transactions }) {
 
 /* ------------------------------- notifications ------------------------------- */
 
-function NotificationsPage() {
+function NotificationsPage({ notifications }) {
   const iconFor = (type) =>
     type === "alert" ? (
       <AlertTriangle size={16} className="text-red-500" />
@@ -878,7 +869,7 @@ function NotificationsPage() {
 
   return (
     <Card>
-      {NOTIFICATIONS.length === 0 ? (
+      {notifications.length === 0 ? (
         <div className="p-4">
           <EmptyState
             icon={Bell}
@@ -888,7 +879,7 @@ function NotificationsPage() {
         </div>
       ) : (
         <div className="divide-y divide-slate-100">
-          {NOTIFICATIONS.map((n) => (
+          {notifications.map((n) => (
             <div key={n.id} className="flex gap-3 px-5 py-4">
               <div className="mt-0.5">{iconFor(n.type)}</div>
               <div className="flex-1">
@@ -1238,23 +1229,32 @@ function WithdrawPage({ user }) {
 export default function StudentApp({ user, onSwitchRole, onLogout }) {
   const [page, setPage] = useState("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [transactions, setTransactions] = useState(INITIAL_TX);
-  const [budgetLimits, setBudgetLimits] = useState(INITIAL_BUDGET_LIMITS);
+  const [wallet, setWallet] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [budgetLimits, setBudgetLimits] = useState({});
+  const [parentName, setParentName] = useState("your parent");
+  const [notifications, setNotifications] = useState([]);
 
-  // Wallet balance is simply the running total of the ledger — no hidden
-  // starting balance to fake a "real" account.
-  const walletBalance = useMemo(() => transactions.reduce((s, t) => s + t.amount, 0), [transactions]);
+  const walletBalance = Number(wallet?.balance ?? 0);
+  const weeklyLimit = Number(wallet?.weekly_limit ?? 5000);
+  const monthlyLimit = Number(wallet?.monthly_limit ?? 18000);
 
-  const weeklyLimit = 5000;
-  const monthlyLimit = 18000;
   const monthlySpent = useMemo(
     () => transactions.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0),
     [transactions]
   );
-  // Demo data has no real dates to bucket by week, so weekly spend tracks
-  // the same ledger — swap in real date filtering once transactions carry
-  // real timestamps.
-  const weeklySpent = monthlySpent;
+
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay());
+  weekStart.setHours(0, 0, 0, 0);
+  const weeklySpent = useMemo(
+    () =>
+      transactions
+        .filter((t) => t.amount < 0 && new Date(t.created_at) >= weekStart)
+        .reduce((s, t) => s + Math.abs(t.amount), 0),
+    [transactions, weekStart]
+  );
 
   const spentByCategory = useMemo(() => {
     const map = {};
@@ -1264,7 +1264,6 @@ export default function StudentApp({ user, onSwitchRole, onLogout }) {
     return map;
   }, [transactions]);
 
-  // A category becomes a visible "budget" once it has a limit or any spend.
   const budgets = useMemo(
     () =>
       Object.keys(CATEGORIES)
@@ -1273,37 +1272,109 @@ export default function StudentApp({ user, onSwitchRole, onLogout }) {
     [budgetLimits, spentByCategory]
   );
 
+  const loadAll = async () => {
+    const { data: w } = await supabase
+      .from("wallets")
+      .select("*")
+      .eq("owner_id", user.id)
+      .maybeSingle();
+    setWallet(w);
+
+    const { data: tx } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("wallet_id", w?.id)
+      .order("created_at", { ascending: false });
+    setTransactions(tx ?? []);
+
+    const { data: links } = await supabase
+      .from("households")
+      .select("parent_id")
+      .eq("child_id", user.id)
+      .maybeSingle();
+    if (links?.parent_id) {
+      const { data: pp } = await supabase
+        .from("profiles")
+        .select("first_name")
+        .eq("id", links.parent_id)
+        .maybeSingle();
+      if (pp?.first_name) setParentName(pp.first_name);
+    }
+
+    if (w?.id) {
+      const { data: px } = await supabase
+        .from("payouts")
+        .select("*")
+        .eq("wallet_id", w.id)
+        .order("created_at", { ascending: false });
+      setNotifications(
+        (px ?? []).map((p) => ({
+          id: p.id,
+          type: p.status === "completed" ? "success" : p.status === "failed" || p.status === "rejected" ? "alert" : "info",
+          title: `Withdrawal ${p.status === "completed" ? "completed" : p.status === "failed" ? "failed" : "requested"}`,
+          body: `${naira(p.amount)} → ${p.bank_name || "bank"} · ${p.account_number}`,
+          time: new Date(p.created_at).toLocaleDateString("en-NG"),
+        }))
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (user) loadAll();
+  }, [user?.id]);
+
   const setBudgetLimit = (category, amount) => {
     setBudgetLimits((prev) => ({ ...prev, [category]: amount }));
   };
 
-  const addExpense = ({ merchant, category, amount }) => {
-    const newTx = {
-      id: Date.now(),
+  const addExpense = async ({ merchant, category, amount, note }) => {
+    if (!wallet) return;
+    const { error } = await supabase.from("transactions").insert({
+      wallet_id: wallet.id,
       merchant,
       category,
       amount,
-      date: "Today",
-      time: new Date().toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" }),
-    };
-    setTransactions((prev) => [newTx, ...prev]);
+    });
+    if (!error) {
+      await supabase
+        .from("wallets")
+        .update({ balance: walletBalance + amount })
+        .eq("id", wallet.id);
+      loadAll();
+    }
   };
 
-  const addMany = (rows) => {
-    const withIds = rows.map((r, i) => ({ id: Date.now() + i, time: "", ...r }));
-    setTransactions((prev) => [...withIds, ...prev]);
+  const addMany = async (rows) => {
+    if (!wallet) return;
+    const inserts = rows.map((r) => ({
+      wallet_id: wallet.id,
+      merchant: r.merchant,
+      category: r.category,
+      amount: r.amount,
+    }));
+    await supabase.from("transactions").insert(inserts);
+    const totalDelta = rows.reduce((s, r) => s + r.amount, 0);
+    await supabase
+      .from("wallets")
+      .update({ balance: walletBalance + totalDelta })
+      .eq("id", wallet.id);
+    loadAll();
   };
+
+  const studentName = user?.user_metadata?.first_name || "Student";
 
   const renderPage = () => {
     switch (page) {
       case "dashboard":
         return (
           <DashboardPage
+            studentName={studentName}
             transactions={transactions}
             budgets={budgets}
             walletBalance={walletBalance}
             weeklySpent={weeklySpent}
             weeklyLimit={weeklyLimit}
+            parentName={parentName}
             onNavigate={setPage}
           />
         );
@@ -1315,6 +1386,7 @@ export default function StudentApp({ user, onSwitchRole, onLogout }) {
             weeklyLimit={weeklyLimit}
             monthlySpent={monthlySpent}
             monthlyLimit={monthlyLimit}
+            parentName={parentName}
           />
         );
       case "transactions":
@@ -1328,7 +1400,7 @@ export default function StudentApp({ user, onSwitchRole, onLogout }) {
       case "insights":
         return <InsightsPage budgets={budgets} transactions={transactions} />;
       case "notifications":
-        return <NotificationsPage />;
+        return <NotificationsPage notifications={notifications} />;
       case "profile":
         return <ProfilePage user={user} />;
       default:

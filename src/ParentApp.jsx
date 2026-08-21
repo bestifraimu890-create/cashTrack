@@ -19,9 +19,6 @@ import { edgeCall } from "./supabase/edge.js";
 // Fresh parent accounts start with no children, no funding history,
 // and no alerts — these fill in as the parent links children and
 // they use their wallets.
-const INITIAL_ALLOWANCE_HISTORY = [];
-const TRANSACTIONS = [];
-const INITIAL_ALERTS = [];
 
 const NAV = [
   { key: "dashboard", label: "Dashboard", icon: LayoutGrid },
@@ -684,7 +681,7 @@ function FundWalletPage({ user }) {
 
 /* ------------------------------ allowance history ---------------------------- */
 
-function AllowanceHistoryPage({ history }) {
+function AllowanceHistoryPage({ history, children }) {
   return (
     <Card>
       {history.length === 0 ? (
@@ -697,8 +694,8 @@ function AllowanceHistoryPage({ history }) {
                 <Send size={15} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-slate-800">{h.child}</p>
-                <p className="text-xs text-slate-400">{h.note} · {h.date}</p>
+                <p className="text-sm font-medium text-slate-800">{h.childName}</p>
+                <p className="text-xs text-slate-400">{h.merchant} · {new Date(h.created_at).toLocaleDateString("en-NG")}</p>
               </div>
               <span className="text-sm font-semibold text-mint-600">+{naira(h.amount)}</span>
             </div>
@@ -871,9 +868,12 @@ function TransactionsPage({ transactions, children }) {
                 <CategoryIcon category={t.category} size={17} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-800">{t.merchant}</p>
-                  <p className="text-xs text-slate-400">{t.child} · {t.category} · {t.date}</p>
+                  <p className="text-xs text-slate-400">{t.childName} · {t.category} · {new Date(t.created_at).toLocaleDateString("en-NG")}</p>
                 </div>
-                <span className="text-sm font-semibold text-slate-800">{naira(t.amount)}</span>
+                <span className={`text-sm font-semibold ${t.amount > 0 ? "text-mint-600" : "text-slate-800"}`}>
+                  {t.amount > 0 ? "+" : ""}
+                  {naira(t.amount)}
+                </span>
               </div>
             ))}
           </div>
@@ -1159,59 +1159,107 @@ export default function ParentApp({ user, onSwitchRole, onLogout }) {
   const [page, setPage] = useState("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [children, setChildren] = useState([]);
+  const [allTransactions, setAllTransactions] = useState([]);
+  const [allowanceHistory, setAllowanceHistory] = useState([]);
+  const [alerts, setAlerts] = useState([]);
 
   // Load real children from the DB on mount
   useEffect(() => {
     if (!user) return;
-    const loadChildren = async () => {
-      const { data: links } = await supabase
-        .from("households")
-        .select("child_id")
-        .eq("parent_id", user.id);
-      if (!links?.length) return;
-      const ids = links.map((l) => l.child_id);
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, school")
-        .in("id", ids);
-      const { data: wallets } = await supabase
-        .from("wallets")
-        .select("owner_id, balance, weekly_limit, monthly_limit, status")
-        .in("owner_id", ids);
-      setChildren(
-        (profiles ?? []).map((p) => {
-          const w = (wallets ?? []).find((x) => x.owner_id === p.id);
-          return {
-            id: p.id,
-            name: `${p.first_name} ${p.last_name}`,
-            school: p.school,
-            balance: Number(w?.balance ?? 0),
-            weeklyLimit: Number(w?.weekly_limit ?? 5000),
-            monthlyLimit: Number(w?.monthly_limit ?? 18000),
-            status: w?.status ?? "active",
-          };
-        }),
-      );
-    };
     loadChildren();
   }, [user]);
-  const [history, setHistory] = useState(INITIAL_ALLOWANCE_HISTORY);
-  const [alerts, setAlerts] = useState(INITIAL_ALERTS);
 
-  const fundWallet = (childId, amount, note) => {
-    const child = children.find((c) => c.id === childId);
-    if (!child) return;
-    setChildren((prev) =>
-      prev.map((c) => (c.id === childId ? { ...c, balance: c.balance + amount } : c))
+  const loadChildren = async () => {
+    const { data: links } = await supabase
+      .from("households")
+      .select("child_id")
+      .eq("parent_id", user.id);
+    if (!links?.length) {
+      setChildren([]);
+      setAllTransactions([]);
+      setAllowanceHistory([]);
+      setAlerts([]);
+      return;
+    }
+    const ids = links.map((l) => l.child_id);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, school")
+      .in("id", ids);
+    const { data: wallets } = await supabase
+      .from("wallets")
+      .select("id, owner_id, balance, weekly_limit, monthly_limit, status")
+      .in("owner_id", ids);
+
+    const childList = (profiles ?? []).map((p) => {
+      const w = (wallets ?? []).find((x) => x.owner_id === p.id);
+      return {
+        id: p.id,
+        name: `${p.first_name} ${p.last_name}`,
+        school: p.school,
+        balance: Number(w?.balance ?? 0),
+        weeklyLimit: Number(w?.weekly_limit ?? 5000),
+        monthlyLimit: Number(w?.monthly_limit ?? 18000),
+        weeklySpent: 0,
+        monthlySpent: 0,
+        status: w?.status ?? "active",
+        walletId: w?.id,
+      };
+    });
+    setChildren(childList);
+
+    const walletIds = childList.filter((c) => c.walletId).map((c) => c.walletId);
+    if (walletIds.length === 0) return;
+
+    const { data: tx } = await supabase
+      .from("transactions")
+      .select("*")
+      .in("wallet_id", walletIds)
+      .order("created_at", { ascending: false });
+    const txWithName = (tx ?? []).map((t) => {
+      const child = childList.find((c) => c.walletId === t.wallet_id);
+      return { ...t, childName: child?.name ?? "Unknown" };
+    });
+    setAllTransactions(txWithName);
+
+    const income = txWithName.filter((t) => t.amount > 0);
+    setAllowanceHistory(income);
+
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    childList.forEach((c) => {
+      const childTx = (tx ?? []).filter((t) => t.wallet_id === c.walletId);
+      const weekSpend = childTx
+        .filter((t) => t.amount < 0 && new Date(t.created_at) >= weekStart)
+        .reduce((s, t) => s + Math.abs(t.amount), 0);
+      const monthSpend = childTx
+        .filter((t) => t.amount < 0 && new Date(t.created_at).getMonth() === now.getMonth())
+        .reduce((s, t) => s + Math.abs(t.amount), 0);
+      c.weeklySpent = weekSpend;
+      c.monthlySpent = monthSpend;
+    });
+    setChildren([...childList]);
+
+    const { data: px } = await supabase
+      .from("payouts")
+      .select("*, wallets(owner_id)")
+      .in("wallet_id", walletIds)
+      .in("status", ["pending_otp", "processing"])
+      .order("created_at", { ascending: false });
+    setAlerts(
+      (px ?? []).map((p) => {
+        const child = childList.find((c) => c.id === p.wallets?.owner_id);
+        return {
+          id: p.id,
+          type: "approval",
+          title: `Withdrawal request: ${naira(p.amount)}`,
+          body: `${child?.name ?? "Child"} wants to withdraw to ${p.bank_name} · ${p.account_number}`,
+          time: new Date(p.created_at).toLocaleDateString("en-NG"),
+        };
+      })
     );
-    setHistory((prev) => [
-      { id: Date.now(), child: child.name, amount, date: "Today", note: note || "Wallet funding" },
-      ...prev,
-    ]);
-  };
-
-  const updateLimits = (childId, field, value) => {
-    setChildren((prev) => prev.map((c) => (c.id === childId ? { ...c, [field]: value } : c)));
   };
 
   const respondToAlert = (id, decision) => {
@@ -1227,13 +1275,13 @@ export default function ParentApp({ user, onSwitchRole, onLogout }) {
       case "fund":
         return <FundWalletPage user={user} />;
       case "allowance":
-        return <AllowanceHistoryPage history={history} />;
+        return <AllowanceHistoryPage history={allowanceHistory} children={children} />;
       case "limits":
         return <SpendingLimitsPage user={user} />;
       case "transactions":
-        return <TransactionsPage transactions={TRANSACTIONS} children={children} />;
+        return <TransactionsPage transactions={allTransactions} children={children} />;
       case "insights":
-        return <InsightsPage children={children} transactions={TRANSACTIONS} />;
+        return <InsightsPage children={children} transactions={allTransactions} />;
       case "alerts":
         return <AlertsPage alerts={alerts} onRespond={respondToAlert} />;
       case "controls":
