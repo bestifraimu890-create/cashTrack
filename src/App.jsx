@@ -14,17 +14,19 @@ export default function App() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // True only when the user arrived via a magic-link email (tokens in the URL hash)
     const isMagicLink = /[#?]access_token=/.test(window.location.hash);
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setUser(session.user);
-        // Fresh magic-link sign-in: hand off to the login page, which finishes
-        // profile setup and routes in. Everything else (tab refocus, token
-        // refresh, restore) must NOT change the current view.
-        if (isMagicLink) setView("login");
-        // Fetch profile in background — no auto-route, just keep state fresh
+
+        if (isMagicLink) {
+          // Clean the URL hash so refreshes don't re-trigger
+          window.history.replaceState({}, "", window.location.pathname);
+          // Magic link = already verified — go straight to the app
+          onLogin(session.user);
+        }
+
         supabase
           .from("profiles")
           .select("role")
