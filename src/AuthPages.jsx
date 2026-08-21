@@ -63,10 +63,6 @@ function LoadingButton({ children, loading }) {
   );
 }
 
-/* --------------------------------- login ---------------------------------- */
-
-// Creates the user's profile (+ wallet for students) from signup metadata
-// if it doesn't exist yet. Used after OTP verification.
 async function ensureProfile(user) {
   const { data: existing } = await supabase
     .from("profiles")
@@ -98,16 +94,9 @@ async function ensureProfile(user) {
 function LoginPage({ onLogin, onGoToSignup, onGoToReset, error: appError }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
   const [error, setError] = useState(appError || "");
   const [loading, setLoading] = useState(false);
-  const [unverified, setUnverified] = useState(false);
-  const [resendSent, setResendSent] = useState(false);
-  const [verifying, setVerifying] = useState(false);
 
-  // Already has a session — go straight to the app, or finish setup if the
-  // profile is missing (account created but email never verified, or the user
-  // just clicked the magic link in the verification email).
   useEffect(() => {
     let active = true;
     supabase.auth.getSession().then(async ({ data }) => {
@@ -122,28 +111,21 @@ function LoginPage({ onLogin, onGoToSignup, onGoToReset, error: appError }) {
       if (profile?.role) {
         onLogin(user);
       } else {
-        // Session but no profile — try to finish setup from the signup metadata.
-        // This covers the "clicked the magic link" path (no code needed).
         const profileError = await ensureProfile(user);
         if (!active) return;
         if (!profileError) {
           onLogin(user);
         } else {
-          setEmail(user.email || "");
-          setUnverified(true);
-          setError("Your email isn't verified yet. Enter the code we emailed you to finish setup.");
+          setError("Could not set up your account. Please try again.");
         }
       }
     });
     return () => { active = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
-    setUnverified(false);
-    setResendSent(false);
     if (!email.trim() || !password) {
       setError("Enter your email and password.");
       return;
@@ -163,70 +145,18 @@ function LoginPage({ onLogin, onGoToSignup, onGoToReset, error: appError }) {
         .eq("id", data.user.id)
         .maybeSingle();
       if (!profile?.role) {
-        // Account exists but was never OTP-verified — send a fresh code and ask for it
-        const { error: otpError } = await supabase.auth.signInWithOtp({ email: email.trim() });
-        if (!otpError) setResendSent(true);
-        setUnverified(true);
-        setError("Your email isn't verified yet. Enter the code we just emailed you to finish setup.");
-        return;
+        const profileError = await ensureProfile(data.user);
+        if (profileError) throw new Error("Could not set up your account. Please try again.");
       }
       onLogin(data.user);
     } catch (err) {
-      if (err.message?.toLowerCase().includes("email not confirmed")) {
-        setUnverified(true);
-        setError("Your email isn't verified yet. Enter the code we emailed you to finish setup.");
-      } else if (err.message?.toLowerCase().includes("invalid login credentials")) {
+      if (err.message?.toLowerCase().includes("invalid login credentials")) {
         setError("Wrong email or password.");
       } else {
         setError(err.message);
       }
     } finally {
       setLoading(false);
-    }
-  };
-
-  const resendCode = async () => {
-    setError("");
-    setResendSent(false);
-    setLoading(true);
-    try {
-      const { error: otpError } = await supabase.auth.signInWithOtp({ email: email.trim() });
-      if (otpError) throw otpError;
-      setResendSent(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const verifyCode = async (e) => {
-    e.preventDefault();
-    setError("");
-    if (code.trim().length !== 6) {
-      setError("Enter the 6-digit code from your email.");
-      return;
-    }
-    setVerifying(true);
-    try {
-      const { data: otpData, error: verifyError } = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: code.trim(),
-        type: "email",
-      });
-      if (verifyError) throw verifyError;
-      const user = otpData?.user;
-      if (!user) throw new Error("Verification failed. Please try again.");
-
-      // Finish setup: create profile + wallet from signup metadata
-      const profileError = await ensureProfile(user);
-      if (profileError) throw profileError;
-
-      onLogin(user);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setVerifying(false);
     }
   };
 
@@ -238,71 +168,34 @@ function LoginPage({ onLogin, onGoToSignup, onGoToReset, error: appError }) {
       badgeText="Real-time insights and bank-level security, built for Nigerian students and parents."
     >
       <ErrorBanner error={error} />
-      {resendSent && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-700">
-          <CheckCircle2 size={15} /> A verification code is on its way to {email.trim()}. Check your inbox (and spam).
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-slate-500">Email Address</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="jane@example.com"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+          />
         </div>
-      )}
-
-      {unverified ? (
-        <form onSubmit={verifyCode} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">Verification Code</label>
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="000000"
-              inputMode="numeric"
-              maxLength={6}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-center text-lg tracking-[0.5em] outline-none focus:border-brand-500"
-            />
-          </div>
-          <LoadingButton loading={verifying}>Verify &amp; Continue</LoadingButton>
-          <button
-            type="button"
-            onClick={resendCode}
-            disabled={loading || verifying}
-            className="w-full rounded-lg border border-brand-200 bg-brand-50 py-2.5 text-sm font-semibold text-brand-700 disabled:opacity-60"
-          >
-            Resend verification code
-          </button>
-          <p className="text-center text-xs text-slate-500">
-            Wrong account?{" "}
-            <button type="button" onClick={() => { setUnverified(false); setError(""); setCode(""); }} className="font-semibold text-brand-700">
-              Back to login
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-500">Password</label>
+            <button type="button" onClick={onGoToReset} className="text-xs font-semibold text-brand-700">
+              Forgot password?
             </button>
-          </p>
-        </form>
-      ) : (
-        <form onSubmit={submit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="jane@example.com"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
-            />
           </div>
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-500">Password</label>
-              <button type="button" onClick={onGoToReset} className="text-xs font-semibold text-brand-700">
-                Forgot password?
-              </button>
-            </div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
-            />
-          </div>
-          <LoadingButton loading={loading}>Log In</LoadingButton>
-        </form>
-      )}
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+          />
+        </div>
+        <LoadingButton loading={loading}>Log In</LoadingButton>
+      </form>
       <p className="mt-6 text-center text-sm text-slate-500">
         Don't have an account?{" "}
         <button onClick={onGoToSignup} className="font-semibold text-brand-700">
@@ -313,8 +206,6 @@ function LoginPage({ onLogin, onGoToSignup, onGoToReset, error: appError }) {
   );
 }
 
-/* -------------------------------- sign up --------------------------------- */
-
 function SignUpPage({ onGoToLogin }) {
   const [step, setStep] = useState(1);
   const [firstName, setFirstName] = useState("");
@@ -324,79 +215,10 @@ function SignUpPage({ onGoToLogin }) {
   const [role, setRole] = useState("student");
   const [school, setSchool] = useState("");
   const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
   const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
-  const [resendIn, setResendIn] = useState(0);
-  const resendTimer = useRef(null);
 
-  const steps = ["Account", "Profile", "Check email"];
-
-  useEffect(() => () => clearInterval(resendTimer.current), []);
-
-  const startResendCountdown = () => {
-    setResendIn(60);
-    resendTimer.current = setInterval(() => {
-      setResendIn((s) => {
-        if (s <= 1) {
-          clearInterval(resendTimer.current);
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-  };
-
-  const sendOtp = async () => {
-    setError("");
-    setInfo("");
-    setLoading(true);
-    try {
-      // 1. Create the auth user with their password (email confirmation is OFF in Supabase)
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          data: {
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-            role,
-            school: role === "student" ? school.trim() : null,
-            phone: role === "parent" ? phone.trim() : null,
-          },
-        },
-      });
-      if (signUpError) throw signUpError;
-      if (!signUpData.user || !signUpData.user.identities?.length) {
-        throw new Error(
-          "Sign-up failed. Please turn OFF \"Confirm email\" in Supabase dashboard: Authentication → Providers → Email."
-        );
-      }
-
-      // 2. Supabase's built-in OTP email (6-digit code, default template)
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: {
-          data: {
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-            role,
-            school: role === "student" ? school.trim() : null,
-            phone: role === "parent" ? phone.trim() : null,
-          },
-        },
-      });
-      if (otpError) throw otpError;
-
-      setStep(3);
-      startResendCountdown();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const steps = ["Account", "Profile"];
 
   const next = () => {
     setError("");
@@ -414,73 +236,61 @@ function SignUpPage({ onGoToLogin }) {
         return;
       }
       setStep(2);
-    } else if (step === 2) {
-      if (role === "student" && !school.trim()) {
-        setError("Enter your school.");
-        return;
-      }
-      if (role === "parent" && !phone.trim()) {
-        setError("Enter your phone number.");
-        return;
-      }
-      sendOtp(); // sends the OTP via Brevo, then advances to step 3
     }
   };
 
   const back = () => {
     setError("");
-    setInfo("");
     setStep((s) => Math.max(1, s - 1));
   };
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
-    if (code.trim().length !== 6) {
-      setError("Enter the 6-digit code sent to your email.");
+    if (role === "student" && !school.trim()) {
+      setError("Enter your school.");
+      return;
+    }
+    if (role === "parent" && !phone.trim()) {
+      setError("Enter your phone number.");
       return;
     }
     setLoading(true);
     try {
-      // Verify the 6-digit code Supabase emailed — this also confirms the email
-      const { data: otpData, error: verifyError } = await supabase.auth.verifyOtp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
-        token: code.trim(),
-        type: "email",
+        password,
+        options: {
+          data: {
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            role,
+            school: role === "student" ? school.trim() : null,
+            phone: role === "parent" ? phone.trim() : null,
+          },
+        },
       });
-      if (verifyError) throw verifyError;
-      const uid = otpData?.user?.id;
-      if (!uid) throw new Error("Verification failed. Please try again.");
-
-      // Create the profile now that the email is verified (RLS allows own-row insert)
-      const { error: profileError } = await supabase.from("profiles").insert({
-        id: uid,
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        role,
-        school: role === "student" ? school.trim() : null,
-        phone: role === "parent" ? phone.trim() : null,
-      });
-      if (profileError) throw profileError;
-
-      // Students get a wallet automatically
-      if (role === "student") {
-        const { error: walletError } = await supabase.from("wallets").insert({ owner_id: uid });
-        if (walletError) throw walletError;
+      if (signUpError) throw signUpError;
+      if (!signUpData.user) {
+        throw new Error("Sign-up failed. Please try again.");
       }
 
-      // Route to login — the login page detects the session and auto-redirects to the app
-      onGoToLogin();
+      const user = signUpData.user;
+
+      if (signUpData.session) {
+        const profileError = await ensureProfile(user);
+        if (profileError) throw profileError;
+        onGoToLogin();
+      } else {
+        const profileError = await ensureProfile(user);
+        if (profileError) throw profileError;
+        onGoToLogin();
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  const resend = () => {
-    if (resendIn > 0 || loading) return;
-    sendOtp();
   };
 
   return (
@@ -514,11 +324,6 @@ function SignUpPage({ onGoToLogin }) {
       </div>
 
       <ErrorBanner error={error} />
-      {info && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-700">
-          <CheckCircle2 size={15} /> {info}
-        </div>
-      )}
 
       {step === 1 && (
         <div className="space-y-4">
@@ -569,7 +374,7 @@ function SignUpPage({ onGoToLogin }) {
       )}
 
       {step === 2 && (
-        <div className="space-y-4">
+        <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="mb-2 block text-xs font-semibold text-slate-500">I am signing up as a...</label>
             <div className="grid grid-cols-2 gap-3">
@@ -614,59 +419,13 @@ function SignUpPage({ onGoToLogin }) {
               />
             </div>
           )}
-          <p className="text-xs text-slate-400">
-            We'll send a sign-in link to <span className="font-medium text-slate-600">{email.trim()}</span>.
-          </p>
           <div className="flex gap-3">
             <button type="button" onClick={back} className="w-full rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600">
               Back
             </button>
-            <button
-              type="button"
-              onClick={next}
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-700 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {loading && <Loader2 size={15} className="animate-spin" />}
-              Send Link
-            </button>
+            <LoadingButton loading={loading}>Sign Up</LoadingButton>
           </div>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="space-y-4 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
-            <CheckCircle2 size={32} className="text-brand-700" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-slate-900">Check your email</h3>
-            <p className="mt-2 text-sm text-slate-500">
-              We sent a sign-in link to{" "}
-              <span className="font-medium text-slate-700">{email.trim()}</span>.
-              Click the link in the email to complete your signup.
-            </p>
-          </div>
-          <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-xs text-slate-400">
-              Didn't get the email? Check your spam folder, or{" "}
-              {resendIn > 0 ? (
-                <span className="text-slate-400">resend in {resendIn}s</span>
-              ) : (
-                <button type="button" onClick={resend} className="font-semibold text-brand-700">
-                  resend the link
-                </button>
-              )}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={back}
-            className="w-full rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600"
-          >
-            Back
-          </button>
-        </div>
+        </form>
       )}
 
       <p className="mt-6 text-center text-sm text-slate-500">
@@ -678,8 +437,6 @@ function SignUpPage({ onGoToLogin }) {
     </AuthShell>
   );
 }
-
-/* ----------------------------- reset password ------------------------------ */
 
 function ResetPasswordPage({ onGoToLogin }) {
   const [email, setEmail] = useState("");
