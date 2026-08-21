@@ -18,6 +18,7 @@ create table if not exists public.monnify_accounts (
 
 alter table public.monnify_accounts enable row level security;
 
+drop policy if exists "monnify_accounts_owner" on public.monnify_accounts;
 create policy "monnify_accounts_owner" on public.monnify_accounts
   for select using (
     exists (
@@ -49,6 +50,7 @@ create table if not exists public.payouts (
 alter table public.payouts enable row level security;
 
 -- Student sees their own requests; parent sees their children's; admin sees all.
+drop policy if exists "payouts_select_owner_or_admin" on public.payouts;
 create policy "payouts_select_owner_or_admin" on public.payouts
   for select using (
     exists (
@@ -67,6 +69,7 @@ create policy "payouts_select_owner_or_admin" on public.payouts
   );
 
 -- Students request payouts from their own wallet.
+drop policy if exists "payouts_insert_owner" on public.payouts;
 create policy "payouts_insert_owner" on public.payouts
   for insert with check (
     exists (
@@ -76,6 +79,7 @@ create policy "payouts_insert_owner" on public.payouts
   );
 
 -- Only admins change status (approve/reject).
+drop policy if exists "payouts_update_admin" on public.payouts;
 create policy "payouts_update_admin" on public.payouts
   for update using (
     exists (

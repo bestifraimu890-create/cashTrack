@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -309,12 +309,61 @@ function DashboardPage({ children, alerts, onNavigate, user }) {
 
 /* --------------------------------- children --------------------------------- */
 
-function ChildrenPage({ children }) {
+function ChildrenPage({ user, children }) {
   const [showAdd, setShowAdd] = useState(false);
+  const [linkCode, setLinkCode] = useState("");
+  const [linking, setLinking] = useState(false);
+  const [linkBanner, setLinkBanner] = useState(null);
+  const [linkedChildren, setLinkedChildren] = useState(children);
+
+  const handleLink = async () => {
+    if (!linkCode.trim()) return;
+    setLinking(true);
+    setLinkBanner(null);
+    try {
+      const r = await edgeCall("link-child", { connectionId: linkCode.trim() });
+      setLinkBanner({ type: "success", text: `Linked ${r.child.name} successfully!` });
+      setLinkCode("");
+      setShowAdd(false);
+      // refresh children list from DB
+      const { data: links } = await supabase
+        .from("households")
+        .select("child_id")
+        .eq("parent_id", user.id);
+      if (links?.length) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name, school")
+          .in("id", links.map((l) => l.child_id));
+        const { data: wallets } = await supabase
+          .from("wallets")
+          .select("owner_id, balance, weekly_limit, monthly_limit, status")
+          .in("owner_id", links.map((l) => l.child_id));
+        setLinkedChildren(
+          (profiles ?? []).map((p) => {
+            const w = (wallets ?? []).find((x) => x.owner_id === p.id);
+            return {
+              id: p.id,
+              name: `${p.first_name} ${p.last_name}`,
+              school: p.school,
+              balance: Number(w?.balance ?? 0),
+              weeklyLimit: Number(w?.weekly_limit ?? 5000),
+              monthlyLimit: Number(w?.monthly_limit ?? 18000),
+              status: w?.status ?? "active",
+            };
+          }),
+        );
+      }
+    } catch (e) {
+      setLinkBanner({ type: "error", text: e.message });
+    } finally {
+      setLinking(false);
+    }
+  };
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">{children.length} children connected to your account</p>
+        <p className="text-sm text-slate-500">{linkedChildren.length} children connected to your account</p>
         <button
           onClick={() => setShowAdd(true)}
           className="flex items-center gap-1 rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white"
@@ -327,25 +376,41 @@ function ChildrenPage({ children }) {
         <Card className="p-6">
           <h3 className="font-semibold text-slate-900">Connect a Child</h3>
           <p className="mt-1 text-sm text-slate-500">
-            Ask your child to generate a connection code from their CashTrack app, then enter it below.
+            Ask your child to generate a connection code from their Profile page, then enter it below.
           </p>
+          {linkBanner && (
+            <div
+              className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+                linkBanner.type === "success" ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-600"
+              }`}
+            >
+              {linkBanner.type === "success" ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+              {linkBanner.text}
+            </div>
+          )}
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <input
-              placeholder="Enter 6-digit connection code"
-              className="flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+              value={linkCode}
+              onChange={(e) => setLinkCode(e.target.value.toUpperCase())}
+              placeholder="Enter connection ID (e.g. CTAB12CD)"
+              className="flex-1 rounded-lg border border-slate-200 px-3 py-2.5 font-mono text-sm font-semibold tracking-wider outline-none focus:border-brand-500"
             />
-            <button className="rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white">
-              Send Request
+            <button
+              onClick={handleLink}
+              disabled={linking || !linkCode.trim()}
+              className="rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {linking ? "Linking…" : "Link Child"}
             </button>
           </div>
-          <button onClick={() => setShowAdd(false)} className="mt-3 text-xs font-medium text-slate-400">
+          <button onClick={() => { setShowAdd(false); setLinkBanner(null); }} className="mt-3 text-xs font-medium text-slate-400">
             Cancel
           </button>
         </Card>
       )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {children.map((c) => (
+        {linkedChildren.map((c) => (
           <Card key={c.id} className="p-6">
             <div className="flex items-center gap-3">
               <ChildAvatar child={c} size={48} />
@@ -1154,7 +1219,7 @@ export default function ParentApp({ user, onSwitchRole, onLogout }) {
       case "dashboard":
         return <DashboardPage children={children} alerts={alerts} onNavigate={setPage} user={user} />;
       case "children":
-        return <ChildrenPage children={children} />;
+        return <ChildrenPage user={user} children={children} />;
       case "fund":
         return <FundWalletPage user={user} />;
       case "allowance":
