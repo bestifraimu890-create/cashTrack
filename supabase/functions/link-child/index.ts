@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       .eq("parent_id", auth.user.id)
       .eq("child_id", student.id)
       .maybeSingle();
-    if (existing) return json({ error: "Already linked", already: true });
+    if (existing) return json({ error: "Already linked to this student" }, 409);
 
     // Create the link
     const { error: linkErr } = await supabase.from("households").insert({

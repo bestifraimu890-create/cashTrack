@@ -16,41 +16,9 @@ import { edgeCall } from "./supabase/edge.js";
 
 /* ---------------------------------- data --------------------------------- */
 
-const PARENT = { name: "" };
-
-const INITIAL_CHILDREN = [
-  {
-    id: "c1",
-    name: "",
-    school: "",
-    type: "Student",
-    underage: false,
-    balance: 0,
-    dailyLimit: 1000,
-    weeklyLimit: 5000,
-    weeklySpent: 0,
-    monthlyLimit: 18000,
-    monthlySpent: 0,
-    status: "active",
-  },
-  {
-    id: "c2",
-    name: "",
-    school: "",
-    type: "Underage Student",
-    underage: true,
-    balance: 0,
-    dailyLimit: 500,
-    weeklyLimit: 2000,
-    weeklySpent: 0,
-    monthlyLimit: 7000,
-    monthlySpent: 0,
-    status: "active",
-  },
-];
-
-// Fresh parent accounts start with no funding history, no logged spend, and
-// no alerts — these fill in as the linked children use their wallets.
+// Fresh parent accounts start with no children, no funding history,
+// and no alerts — these fill in as the parent links children and
+// they use their wallets.
 const INITIAL_ALLOWANCE_HISTORY = [];
 const TRANSACTIONS = [];
 const INITIAL_ALERTS = [];
@@ -1190,7 +1158,43 @@ function ParentalControlsPage({ children }) {
 export default function ParentApp({ user, onSwitchRole, onLogout }) {
   const [page, setPage] = useState("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [children, setChildren] = useState(INITIAL_CHILDREN);
+  const [children, setChildren] = useState([]);
+
+  // Load real children from the DB on mount
+  useEffect(() => {
+    if (!user) return;
+    const loadChildren = async () => {
+      const { data: links } = await supabase
+        .from("households")
+        .select("child_id")
+        .eq("parent_id", user.id);
+      if (!links?.length) return;
+      const ids = links.map((l) => l.child_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, school")
+        .in("id", ids);
+      const { data: wallets } = await supabase
+        .from("wallets")
+        .select("owner_id, balance, weekly_limit, monthly_limit, status")
+        .in("owner_id", ids);
+      setChildren(
+        (profiles ?? []).map((p) => {
+          const w = (wallets ?? []).find((x) => x.owner_id === p.id);
+          return {
+            id: p.id,
+            name: `${p.first_name} ${p.last_name}`,
+            school: p.school,
+            balance: Number(w?.balance ?? 0),
+            weeklyLimit: Number(w?.weekly_limit ?? 5000),
+            monthlyLimit: Number(w?.monthly_limit ?? 18000),
+            status: w?.status ?? "active",
+          };
+        }),
+      );
+    };
+    loadChildren();
+  }, [user]);
   const [history, setHistory] = useState(INITIAL_ALLOWANCE_HISTORY);
   const [alerts, setAlerts] = useState(INITIAL_ALERTS);
 
