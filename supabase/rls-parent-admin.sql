@@ -1,12 +1,26 @@
--- ============================================================
--- CashTrack — RLS policies for parent + admin read access
--- Run this in the Supabase SQL Editor AFTER schema.sql
--- ============================================================
+-- EMERGENCY FIX: Drop all broken RLS policies and recreate safe ones
+-- Run this in Supabase SQL Editor NOW
 
--- ---------- profiles ----------
-
--- Parent can see their children's profiles
+-- Drop ALL policies I added that might be causing recursion
 drop policy if exists "profiles_parent_see_children" on public.profiles;
+drop policy if exists "profiles_child_see_parent" on public.profiles;
+drop policy if exists "profiles_admin_select" on public.profiles;
+drop policy if exists "profiles_admin_all" on public.profiles;
+drop policy if exists "wallets_parent_see_children" on public.wallets;
+drop policy if exists "wallets_parent_update_children" on public.wallets;
+drop policy if exists "wallets_admin_all" on public.wallets;
+drop policy if exists "transactions_parent_see_children" on public.transactions;
+drop policy if exists "transactions_admin_all" on public.transactions;
+drop policy if exists "households_admin_all" on public.households;
+drop policy if exists "payouts_parent_update" on public.payouts;
+
+-- Drop the helper function
+drop function if exists public.user_role();
+
+-- Now recreate ONLY the safe parent-child policies (no recursion)
+-- These work because they query HOUSEHOLDS, not the same table
+
+-- Parent can see children's profiles (queries households, not profiles recursively)
 create policy "profiles_parent_see_children" on public.profiles
   for select using (
     exists (
@@ -15,8 +29,7 @@ create policy "profiles_parent_see_children" on public.profiles
     )
   );
 
--- Child can see their parent's profile (for name display)
-drop policy if exists "profiles_child_see_parent" on public.profiles;
+-- Child can see parent's profile
 create policy "profiles_child_see_parent" on public.profiles
   for select using (
     exists (
@@ -25,20 +38,7 @@ create policy "profiles_child_see_parent" on public.profiles
     )
   );
 
--- Admin can see all profiles
-drop policy if exists "profiles_admin_all" on public.profiles;
-create policy "profiles_admin_all" on public.profiles
-  for all using (
-    exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid() and p.role = 'admin'
-    )
-  );
-
--- ---------- wallets ----------
-
--- Parent can see their children's wallets
-drop policy if exists "wallets_parent_see_children" on public.wallets;
+-- Parent can see children's wallets
 create policy "wallets_parent_see_children" on public.wallets
   for select using (
     exists (
@@ -47,8 +47,7 @@ create policy "wallets_parent_see_children" on public.wallets
     )
   );
 
--- Parent can update children's wallets (for send-to-child)
-drop policy if exists "wallets_parent_update_children" on public.wallets;
+-- Parent can update children's wallets
 create policy "wallets_parent_update_children" on public.wallets
   for update using (
     exists (
@@ -57,20 +56,7 @@ create policy "wallets_parent_update_children" on public.wallets
     )
   );
 
--- Admin can see all wallets
-drop policy if exists "wallets_admin_all" on public.wallets;
-create policy "wallets_admin_all" on public.wallets
-  for all using (
-    exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid() and p.role = 'admin'
-    )
-  );
-
--- ---------- transactions ----------
-
--- Parent can see their children's transactions
-drop policy if exists "transactions_parent_see_children" on public.transactions;
+-- Parent can see children's transactions
 create policy "transactions_parent_see_children" on public.transactions
   for select using (
     exists (
@@ -80,32 +66,7 @@ create policy "transactions_parent_see_children" on public.transactions
     )
   );
 
--- Admin can see all transactions
-drop policy if exists "transactions_admin_all" on public.transactions;
-create policy "transactions_admin_all" on public.transactions
-  for all using (
-    exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid() and p.role = 'admin'
-    )
-  );
-
--- ---------- households ----------
-
--- Admin can see all households
-drop policy if exists "households_admin_all" on public.households;
-create policy "households_admin_all" on public.households
-  for all using (
-    exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid() and p.role = 'admin'
-    )
-  );
-
--- ---------- payouts ----------
-
--- Parent can update child payouts (approve/reject)
-drop policy if exists "payouts_parent_update" on public.payouts;
+-- Parent can update child payouts
 create policy "payouts_parent_update" on public.payouts
   for update using (
     exists (
