@@ -274,12 +274,13 @@ function DashboardPage({ children, alerts, onNavigate, user }) {
 
 /* --------------------------------- children --------------------------------- */
 
-function ChildrenPage({ user, children }) {
+function ChildrenPage({ user, children, onRefresh }) {
   const [showAdd, setShowAdd] = useState(false);
   const [linkCode, setLinkCode] = useState("");
   const [linking, setLinking] = useState(false);
   const [linkBanner, setLinkBanner] = useState(null);
-  const [linkedChildren, setLinkedChildren] = useState(children);
+
+  const linkedChildren = children;
 
   const handleLink = async () => {
     if (!linkCode.trim()) return;
@@ -290,35 +291,7 @@ function ChildrenPage({ user, children }) {
       setLinkBanner({ type: "success", text: `Linked ${r.child.name} successfully!` });
       setLinkCode("");
       setShowAdd(false);
-      // refresh children list from DB
-      const { data: links } = await supabase
-        .from("households")
-        .select("child_id")
-        .eq("parent_id", user.id);
-      if (links?.length) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, first_name, last_name, school")
-          .in("id", links.map((l) => l.child_id));
-        const { data: wallets } = await supabase
-          .from("wallets")
-          .select("owner_id, balance, weekly_limit, monthly_limit, status")
-          .in("owner_id", links.map((l) => l.child_id));
-        setLinkedChildren(
-          (profiles ?? []).map((p) => {
-            const w = (wallets ?? []).find((x) => x.owner_id === p.id);
-            return {
-              id: p.id,
-              name: `${p.first_name} ${p.last_name}`,
-              school: p.school,
-              balance: Number(w?.balance ?? 0),
-              weeklyLimit: Number(w?.weekly_limit ?? 5000),
-              monthlyLimit: Number(w?.monthly_limit ?? 18000),
-              status: w?.status ?? "active",
-            };
-          }),
-        );
-      }
+      if (onRefresh) onRefresh();
     } catch (e) {
       setLinkBanner({ type: "error", text: e.message });
     } finally {
@@ -384,8 +357,8 @@ function ChildrenPage({ user, children }) {
                 <p className="truncate text-xs text-slate-400">{c.school}</p>
               </div>
               <span className="flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
-                {c.underage ? <Baby size={12} /> : <GraduationCap size={12} />}
-                {c.type}
+                <GraduationCap size={12} />
+                Student
               </span>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3">
@@ -1271,7 +1244,7 @@ export default function ParentApp({ user, onSwitchRole, onLogout }) {
       case "dashboard":
         return <DashboardPage children={children} alerts={alerts} onNavigate={setPage} user={user} />;
       case "children":
-        return <ChildrenPage user={user} children={children} />;
+        return <ChildrenPage user={user} children={children} onRefresh={loadChildren} />;
       case "fund":
         return <FundWalletPage user={user} />;
       case "allowance":
