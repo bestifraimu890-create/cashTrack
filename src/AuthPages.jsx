@@ -331,7 +331,7 @@ function SignUpPage({ onGoToLogin }) {
   const [resendIn, setResendIn] = useState(0);
   const resendTimer = useRef(null);
 
-  const steps = ["Account", "Profile", "Verify"];
+  const steps = ["Account", "Profile", "Check email"];
 
   useEffect(() => () => clearInterval(resendTimer.current), []);
 
@@ -615,7 +615,7 @@ function SignUpPage({ onGoToLogin }) {
             </div>
           )}
           <p className="text-xs text-slate-400">
-            We'll email a 6-digit verification code to <span className="font-medium text-slate-600">{email.trim()}</span>.
+            We'll send a sign-in link to <span className="font-medium text-slate-600">{email.trim()}</span>.
           </p>
           <div className="flex gap-3">
             <button type="button" onClick={back} className="w-full rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600">
@@ -628,43 +628,45 @@ function SignUpPage({ onGoToLogin }) {
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-700 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
             >
               {loading && <Loader2 size={15} className="animate-spin" />}
-              Send Code
+              Send Link
             </button>
           </div>
         </div>
       )}
 
       {step === 3 && (
-        <form onSubmit={submit} className="space-y-4">
-          <p className="text-sm text-slate-500">
-            We sent a 6-digit code to <span className="font-medium text-slate-700">{email.trim()}</span>. It expires in
-            10 minutes.
-          </p>
-          <input
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            placeholder="000000"
-            inputMode="numeric"
-            maxLength={6}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-center text-lg tracking-[0.5em] outline-none focus:border-brand-500"
-          />
-          <div className="flex gap-3">
-            <button type="button" onClick={back} className="w-full rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600">
-              Back
-            </button>
-            <LoadingButton loading={loading}>Verify &amp; Continue</LoadingButton>
+        <div className="space-y-4 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
+            <CheckCircle2 size={32} className="text-brand-700" />
           </div>
-          <p className="text-center text-xs text-slate-500">
-            Didn't get the code?{" "}
-            {resendIn > 0 ? (
-              <span className="text-slate-400">Resend in {resendIn}s</span>
-            ) : (
-              <button type="button" onClick={resend} className="font-semibold text-brand-700">
-                Resend code
-              </button>
-            )}
-          </p>
-        </form>
+          <div>
+            <h3 className="font-semibold text-slate-900">Check your email</h3>
+            <p className="mt-2 text-sm text-slate-500">
+              We sent a sign-in link to{" "}
+              <span className="font-medium text-slate-700">{email.trim()}</span>.
+              Click the link in the email to complete your signup.
+            </p>
+          </div>
+          <div className="rounded-xl bg-slate-50 p-4">
+            <p className="text-xs text-slate-400">
+              Didn't get the email? Check your spam folder, or{" "}
+              {resendIn > 0 ? (
+                <span className="text-slate-400">resend in {resendIn}s</span>
+              ) : (
+                <button type="button" onClick={resend} className="font-semibold text-brand-700">
+                  resend the link
+                </button>
+              )}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={back}
+            className="w-full rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600"
+          >
+            Back
+          </button>
+        </div>
       )}
 
       <p className="mt-6 text-center text-sm text-slate-500">
