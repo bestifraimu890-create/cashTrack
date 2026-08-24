@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutGrid, Users, Send, History, SlidersHorizontal, Receipt,
-  LineChart as LineChartIcon, Bell, ShieldAlert,
+  LineChart as LineChartIcon, Bell, ShieldAlert, User,
 } from "lucide-react";
 import { supabase } from "../../supabase/client.js";
 import { naira, initialsOf } from "../../lib/constants.js";
@@ -19,6 +19,7 @@ const NAV = [
   { to: "/parent/insights", label: "Insights", icon: LineChartIcon },
   { to: "/parent/alerts", label: "Alerts", icon: Bell },
   { to: "/parent/controls", label: "Parental Controls", icon: ShieldAlert },
+  { to: "/parent/profile", label: "Profile", icon: User },
 ];
 
 export default function ParentLayout() {

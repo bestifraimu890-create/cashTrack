@@ -60,31 +60,47 @@ Deno.serve(async (req) => {
       if (existing) return json({ account: existing });
 
       const fullName = `${profile.first_name} ${profile.last_name}`.trim();
-      const data = await monnifyApi("/api/v2/bank-transfer/reserved-accounts", {
-        method: "POST",
-        body: JSON.stringify({
-          accountReference: `CT-${wallet.id}`,
-          accountName: `CashTrack ${fullName}`,
-          currencyCode: "NGN",
-          contractCode: getContractCode(),
-          customerEmail: auth.user.email,
-          customerName: fullName,
-          getAllAvailableBanks: false,
-          preferredBanks: ["035", "058", "044", "011", "232", "063"],
-        }),
-      });
+      const accountRef = `CT-${wallet.id}`;
 
-      const acc = data.responseBody?.accounts?.[0];
-      if (!acc) throw new Error("Monnify returned no virtual account");
+      let data;
+      try {
+        data = await monnifyApi("/api/v2/bank-transfer/reserved-accounts", {
+          method: "POST",
+          body: JSON.stringify({
+            accountReference: accountRef,
+            accountName: `CashTrack ${fullName}`,
+            currencyCode: "NGN",
+            contractCode: getContractCode(),
+            customerEmail: auth.user.email,
+            customerName: fullName,
+            getAllAvailableBanks: false,
+            preferredBanks: ["035", "058", "044", "011", "232", "063"],
+          }),
+        });
+      } catch (reserveErr) {
+        const msg = reserveErr instanceof Error ? reserveErr.message : "";
+        if (msg.includes("cannot reserve more than 1")) {
+          // Account already exists on Monnify — retrieve it
+          data = await monnifyApi(
+            `/api/v2/bank-transfer/reserved-accounts/${accountRef}`,
+            { method: "GET" },
+          );
+        } else {
+          throw reserveErr;
+        }
+      }
+
+      const acc = data.responseBody?.accounts?.[0] ?? data.responseBody;
+      if (!acc || !acc.accountNumber) throw new Error("Monnify returned no virtual account");
 
       const { data: row, error: insErr } = await supabase
         .from("monnify_accounts")
         .insert({
           wallet_id: wallet.id,
-          account_name: acc.accountName,
+          account_name: acc.accountName ?? `CashTrack ${fullName}`,
           account_number: acc.accountNumber,
-          bank_name: acc.bankName,
-          monnify_reference: data.responseBody?.reference ?? `CT-${wallet.id}`,
+          bank_name: acc.bankName ?? "Wema Bank",
+          monnify_reference: data.responseBody?.reference ?? accountRef,
         })
         .select()
         .single();

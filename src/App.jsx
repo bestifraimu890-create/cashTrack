@@ -30,6 +30,7 @@ import ParentTransactions from "./pages/parent/Transactions.jsx";
 import ParentInsights from "./pages/parent/Insights.jsx";
 import ParentAlerts from "./pages/parent/Alerts.jsx";
 import ParentalControls from "./pages/parent/ParentalControls.jsx";
+import ParentProfile from "./pages/parent/Profile.jsx";
 
 import AdminLayout from "./pages/admin/AdminLayout.jsx";
 import AdminDashboard from "./pages/admin/Dashboard.jsx";
@@ -126,6 +127,7 @@ export default function App() {
         <Route path="insights" element={<ParentInsights />} />
         <Route path="alerts" element={<ParentAlerts />} />
         <Route path="controls" element={<ParentalControls />} />
+        <Route path="profile" element={<ParentProfile />} />
       </Route>
 
       {/* Admin area */}

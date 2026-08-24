@@ -58,7 +58,7 @@ export function DashboardSidebar({ brandLabel, items, alertCount = 0, supportLab
 
   return (
     <>
-      <aside className="hidden lg:block w-64 shrink-0 border-r border-slate-200">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 overflow-y-auto border-r border-slate-200 lg:block">
         {content}
       </aside>
       {mobileOpen && (
