@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { HelpCircle, LogOut, Menu } from "lucide-react";
 
-export function DashboardSidebar({ brandLabel, items, alertCount = 0, supportLabel = "Support", extraFooter, onLogout, mobileOpen, setMobileOpen }) {
+export function DashboardSidebar({ brandLabel, items, alertCount = 0, supportLabel = "Support", supportIcon: SupportIcon, extraFooter, onLogout, mobileOpen, setMobileOpen }) {
   const content = (
     <div className="flex h-full flex-col bg-white">
       <div className="flex items-center gap-2 px-6 py-6">
@@ -10,10 +10,11 @@ export function DashboardSidebar({ brandLabel, items, alertCount = 0, supportLab
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
-        {items.map(({ to, label, icon: Icon }) => (
+        {items.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
+            end={end}
             onClick={() => setMobileOpen(false)}
             className={({ isActive }) =>
               `flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
@@ -41,7 +42,7 @@ export function DashboardSidebar({ brandLabel, items, alertCount = 0, supportLab
       <div className="space-y-1 border-t border-slate-100 px-3 py-3">
         {extraFooter}
         <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50">
-          <HelpCircle size={18} className="text-slate-400" />
+          {SupportIcon ? <SupportIcon size={18} className="text-slate-400" /> : <HelpCircle size={18} className="text-slate-400" />}
           {supportLabel}
         </button>
         <button

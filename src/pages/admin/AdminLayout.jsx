@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutGrid, Users, Wallet as WalletIcon, Receipt, Percent,
-  FileBarChart2, Settings,
+  FileBarChart2, Settings, Send,
 } from "lucide-react";
 import { supabase } from "../../supabase/client.js";
 import { initialsOf } from "../../lib/constants.js";
@@ -14,7 +14,7 @@ const NAV = [
   { to: "/admin/users", label: "Users", icon: Users },
   { to: "/admin/wallets", label: "Wallets", icon: WalletIcon },
   { to: "/admin/transactions", label: "Transactions", icon: Receipt },
-  { to: "/admin/payouts", label: "Payouts", icon: Receipt },
+  { to: "/admin/payouts", label: "Payouts", icon: Send },
   { to: "/admin/revenue", label: "Revenue", icon: Percent },
   { to: "/admin/reports", label: "Reports", icon: FileBarChart2 },
 ];
@@ -111,6 +111,7 @@ export default function AdminLayout() {
         brandLabel="Super Admin"
         items={NAV}
         supportLabel="Platform Settings"
+        supportIcon={Settings}
         mobileOpen={mobileOpen}
         setMobileOpen={setMobileOpen}
         onLogout={async () => { await logout(); navigate("/", { replace: true }); }}

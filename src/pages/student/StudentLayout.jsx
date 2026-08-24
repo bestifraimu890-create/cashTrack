@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutGrid, Wallet as WalletIcon, Receipt, PlusCircle, PiggyBank,
-  LineChart as LineChartIcon, Bell, User,
+  LineChart as LineChartIcon, Bell, User, Send,
 } from "lucide-react";
 import { supabase } from "../../supabase/client.js";
 import { naira, initialsOf, CATEGORIES } from "../../lib/constants.js";
@@ -14,7 +14,7 @@ const NAV = [
   { to: "/student/wallet", label: "Wallet", icon: WalletIcon },
   { to: "/student/transactions", label: "Transactions", icon: Receipt },
   { to: "/student/add-expense", label: "Add Expense", icon: PlusCircle },
-  { to: "/student/withdraw", label: "Withdraw", icon: WalletIcon },
+  { to: "/student/withdraw", label: "Withdraw", icon: Send },
   { to: "/student/budget", label: "Budget", icon: PiggyBank },
   { to: "/student/insights", label: "Insights", icon: LineChartIcon },
   { to: "/student/notifications", label: "Notifications", icon: Bell },
