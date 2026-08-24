@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabase } from "../../supabase/client.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { initialsOf } from "../../lib/constants.js";
 import { Card } from "../../components/common/index.js";
 
 export default function Profile() {
   const { user } = useOutletContext();
+  const { refreshUser } = useAuth();
 
   const [firstName, setFirstName] = useState(user?.user_metadata?.first_name ?? "");
   const [lastName, setLastName] = useState(user?.user_metadata?.last_name ?? "");
@@ -58,6 +60,7 @@ export default function Profile() {
       setFeedback({ type: "success", msg: "Profile updated successfully." });
       setNewPassword("");
       setConfirmPassword("");
+      await refreshUser();
     }
     setSaving(false);
   };

@@ -49,8 +49,13 @@ export function AuthProvider({ children }) {
     setRole(null);
   };
 
+  const refreshUser = async () => {
+    const { data } = await supabase.auth.getUser();
+    if (data.user) setUser(data.user);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, role, loading, setRole, fetchRole, logout }}>
+    <AuthContext.Provider value={{ user, role, loading, setRole, fetchRole, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
