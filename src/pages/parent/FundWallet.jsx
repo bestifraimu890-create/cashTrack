@@ -19,6 +19,10 @@ export default function FundWallet() {
   const [sending, setSending] = useState(false);
   const [banner, setBanner] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [manualEntry, setManualEntry] = useState(false);
+  const [manualBank, setManualBank] = useState("");
+  const [manualNumber, setManualNumber] = useState("");
+  const [manualName, setManualName] = useState("");
   const quickAmounts = [500, 1000, 2000, 5000];
 
   const load = async () => {
@@ -61,6 +65,41 @@ export default function FundWallet() {
       const r = await edgeCall("fund-wallet", { action: "reserve" });
       setAccount(r.account);
       setWallet((prev) => prev ?? {});
+    } catch (e) {
+      if (e.message?.includes("already have a reserved account")) {
+        setManualEntry(true);
+        setBanner({ type: "error", text: e.message + " You can enter your account details below." });
+      } else {
+        setBanner({ type: "error", text: e.message });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveManualAccount = async () => {
+    if (!manualNumber.trim() || !manualBank.trim() || !manualName.trim()) {
+      setBanner({ type: "error", text: "All fields are required." });
+      return;
+    }
+    setLoading(true);
+    setBanner(null);
+    try {
+      const { error } = await supabase.from("monnify_accounts").insert({
+        wallet_id: wallet.id,
+        account_name: manualName.trim(),
+        account_number: manualNumber.trim(),
+        bank_name: manualBank.trim(),
+        monnify_reference: `manual-${wallet.id}`,
+      });
+      if (error) throw error;
+      setAccount({
+        account_name: manualName.trim(),
+        account_number: manualNumber.trim(),
+        bank_name: manualBank.trim(),
+      });
+      setManualEntry(false);
+      setBanner({ type: "success", text: "Account details saved." });
     } catch (e) {
       setBanner({ type: "error", text: e.message });
     } finally {
@@ -166,6 +205,45 @@ export default function FundWallet() {
                 >
                   {copied ? "Copied!" : "Copy number"}
                 </button>
+              </div>
+            ) : manualEntry ? (
+              <div className="mt-3 space-y-3">
+                <p className="text-xs font-semibold text-slate-600">Enter your Monnify reserved account details:</p>
+                <input
+                  value={manualNumber}
+                  onChange={(e) => setManualNumber(e.target.value)}
+                  placeholder="Account number"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+                />
+                <input
+                  value={manualBank}
+                  onChange={(e) => setManualBank(e.target.value)}
+                  placeholder="Bank name (e.g. Moniepoint, Wema)"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+                />
+                <input
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  placeholder="Account name"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={saveManualAccount}
+                    disabled={loading}
+                    className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {loading ? "Saving…" : "Save Account"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setManualEntry(false)}
+                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             ) : (
               <button

@@ -80,11 +80,38 @@ Deno.serve(async (req) => {
       } catch (reserveErr) {
         const msg = reserveErr instanceof Error ? reserveErr.message : "";
         if (msg.includes("cannot reserve more than 1")) {
-          // Account already exists on Monnify — retrieve it
-          data = await monnifyApi(
-            `/api/v2/bank-transfer/reserved-accounts/${accountRef}`,
-            { method: "GET" },
-          );
+          // Account already exists on Monnify but with a different reference.
+          // Try common reference patterns to retrieve it.
+          const refsToTry = [
+            accountRef,
+            auth.user.email,
+            `CTW-${wallet.id}`,
+            `${wallet.id}`,
+          ];
+          let found = false;
+          for (const ref of refsToTry) {
+            try {
+              data = await monnifyApi(
+                `/api/v2/bank-transfer/reserved-accounts/${encodeURIComponent(ref)}`,
+                { method: "GET" },
+              );
+              if (data.responseBody?.accounts?.[0]?.accountNumber) {
+                found = true;
+                break;
+              }
+            } catch {
+              // try next reference
+            }
+          }
+          if (!found) {
+            return json(
+              {
+                error:
+                  "You already have a reserved account on Monnify. Please contact support to retrieve your existing account details.",
+              },
+              409,
+            );
+          }
         } else {
           throw reserveErr;
         }
@@ -100,7 +127,7 @@ Deno.serve(async (req) => {
           account_name: acc.accountName ?? `CashTrack ${fullName}`,
           account_number: acc.accountNumber,
           bank_name: acc.bankName ?? "Wema Bank",
-          monnify_reference: data.responseBody?.reference ?? accountRef,
+          monnify_reference: data.responseBody?.reservationReference ?? data.responseBody?.reference ?? accountRef,
         })
         .select()
         .single();
