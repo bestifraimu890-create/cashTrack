@@ -352,9 +352,9 @@ function Features() {
       </AnimatedSection>
       <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((f, i) => (
-          <AnimatedSection key={f.title} anim="pop" delay={i * 80}>
+          <AnimatedSection key={f.title} anim="pop" delay={i * 80} className="flex flex-col">
             <div
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card"
+              className="flex-1 rounded-2xl border border-slate-200 bg-white p-6 shadow-card"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
                 <f.icon size={19} />
@@ -459,8 +459,8 @@ function SchoolLife() {
 
         <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {facts.map((f, i) => (
-            <AnimatedSection key={f.title} anim="fade-up" delay={i * 100}>
-              <div className="rounded-2xl border border-slate-200 bg-paper p-6">
+            <AnimatedSection key={f.title} anim="fade-up" delay={i * 100} className="flex flex-col">
+              <div className="flex-1 rounded-2xl border border-slate-200 bg-paper p-6">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-700 text-white">
                   <f.icon size={18} />
                 </div>
@@ -644,20 +644,20 @@ function RevenueSection() {
         </AnimatedSection>
 
         <div className="mx-auto mt-10 grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
-          <AnimatedSection anim="pop" delay={0}>
-            <div className="rounded-2xl bg-white/10 p-6">
+          <AnimatedSection anim="pop" delay={0} className="flex flex-col">
+            <div className="flex-1 rounded-2xl bg-white/10 p-6">
               <p className="font-display text-3xl font-bold">1.5%</p>
               <p className="mt-1 text-xs text-brand-100">per transaction</p>
             </div>
           </AnimatedSection>
-          <AnimatedSection anim="pop" delay={100}>
-            <div className="rounded-2xl bg-white/10 p-6">
+          <AnimatedSection anim="pop" delay={100} className="flex flex-col">
+            <div className="flex-1 rounded-2xl bg-white/10 p-6">
               <p className="font-display text-3xl font-bold">{naira(200)}</p>
               <p className="mt-1 text-xs text-brand-100">maximum fee, capped</p>
             </div>
           </AnimatedSection>
-          <AnimatedSection anim="pop" delay={200}>
-            <div className="rounded-2xl bg-white/10 p-6">
+          <AnimatedSection anim="pop" delay={200} className="flex flex-col">
+            <div className="flex-1 rounded-2xl bg-white/10 p-6">
               <p className="font-display text-3xl font-bold">{NAIRA_MARK}0</p>
               <p className="mt-1 text-xs text-brand-100">
                 to sign up or use the app
