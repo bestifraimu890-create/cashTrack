@@ -30,9 +30,10 @@ export default function StudentLayout() {
   const [transactions, setTransactions] = useState([]);
   const [budgetLimits, setBudgetLimits] = useState({});
   const [parentName, setParentName] = useState("your parent");
-  const [parentBalance, setParentBalance] = useState(0);
   const [parentLinked, setParentLinked] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [householdId, setHouseholdId] = useState(null);
+  const [householdControls, setHouseholdControls] = useState({});
 
   const walletBalance = Number(wallet?.balance ?? 0);
   const weeklyLimit = Number(wallet?.weekly_limit ?? 5000);
@@ -72,47 +73,49 @@ export default function StudentLayout() {
   );
 
   const loadAll = async () => {
-    const { data: w } = await supabase
-      .from("wallets")
-      .select("*")
-      .eq("owner_id", user.id)
-      .maybeSingle();
-    setWallet(w);
-
-    const { data: tx } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("wallet_id", w?.id)
-      .order("created_at", { ascending: false });
-    setTransactions(tx ?? []);
-
     const { data: links } = await supabase
       .from("households")
-      .select("parent_id")
+      .select("id, parent_id, require_approval, approval_threshold, notify_on_every_transaction")
       .eq("child_id", user.id)
       .maybeSingle();
-    if (links?.parent_id) {
-      setParentLinked(true);
-      const { data: pp } = await supabase
-        .from("profiles")
-        .select("first_name")
-        .eq("id", links.parent_id)
-        .maybeSingle();
-      if (pp?.first_name) setParentName(pp.first_name);
-
-      const { data: pw } = await supabase
-        .from("wallets")
-        .select("balance")
-        .eq("owner_id", links.parent_id)
-        .maybeSingle();
-      if (pw) setParentBalance(Number(pw.balance ?? 0));
+    if (!links?.parent_id) {
+      setParentLinked(false);
+      return;
     }
+    setParentLinked(true);
+    setHouseholdId(links.id);
+    setHouseholdControls({
+      require_approval: links.require_approval,
+      approval_threshold: links.approval_threshold,
+      notify_on_every_transaction: links.notify_on_every_transaction,
+    });
 
-    if (w?.id) {
+    const { data: pp } = await supabase
+      .from("profiles")
+      .select("first_name")
+      .eq("id", links.parent_id)
+      .maybeSingle();
+    if (pp?.first_name) setParentName(pp.first_name);
+
+    const { data: pw } = await supabase
+      .from("wallets")
+      .select("*")
+      .eq("owner_id", links.parent_id)
+      .maybeSingle();
+    setWallet(pw);
+
+    if (pw?.id) {
+      const { data: tx } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("wallet_id", pw.id)
+        .order("created_at", { ascending: false });
+      setTransactions(tx ?? []);
+
       const { data: px } = await supabase
         .from("payouts")
         .select("*")
-        .eq("wallet_id", w.id)
+        .eq("wallet_id", pw.id)
         .order("created_at", { ascending: false });
       setNotifications(
         (px ?? []).map((p) => ({
@@ -180,12 +183,14 @@ export default function StudentLayout() {
     notifications,
     parentName,
     parentLinked,
-    parentBalance,
+    parentBalance: walletBalance,
     walletBalance,
     weeklySpent,
     weeklyLimit,
     monthlySpent,
     monthlyLimit,
+    householdId,
+    householdControls,
     studentName: user?.user_metadata?.first_name || "Student",
     setBudgetLimit,
     addExpense,

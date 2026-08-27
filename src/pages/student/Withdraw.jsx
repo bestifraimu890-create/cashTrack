@@ -7,62 +7,45 @@ import { naira, PAYOUT_STATUS } from "../../lib/constants.js";
 import { Card, LoadingButton } from "../../components/common/index.js";
 
 export default function Withdraw() {
-  const { user } = useOutletContext();
+  const { user, wallet, parentLinked, parentName, householdControls } = useOutletContext();
   const [banks, setBanks] = useState([]);
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [resolvedName, setResolvedName] = useState("");
   const [amount, setAmount] = useState("");
-  const [wallet, setWallet] = useState(null);
   const [payouts, setPayouts] = useState([]);
-  const [weeklySpent, setWeeklySpent] = useState(0);
   const [todaySpent, setTodaySpent] = useState(0);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [banner, setBanner] = useState(null);
 
-  const loadWallet = async () => {
-    const { data } = await supabase
-      .from("wallets")
+  const loadPayouts = async () => {
+    if (!wallet?.id) return;
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const { data: todayPx } = await supabase
+      .from("payouts")
+      .select("amount")
+      .eq("wallet_id", wallet.id)
+      .gte("created_at", todayStart.toISOString())
+      .not("status", "in", "(failed,rejected)");
+    setTodaySpent((todayPx ?? []).reduce((s, p) => s + Number(p.amount), 0));
+
+    const { data: px } = await supabase
+      .from("payouts")
       .select("*")
-      .eq("owner_id", user.id)
-      .maybeSingle();
-    setWallet(data);
-    if (data) {
-      const { data: tx } = await supabase
-        .from("transactions")
-        .select("amount")
-        .eq("wallet_id", data.id)
-        .lt("amount", 0)
-        .gte("created_at", new Date(Date.now() - 7 * 86400000).toISOString());
-      setWeeklySpent((tx ?? []).reduce((s, t) => s + Math.abs(t.amount), 0));
-
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const { data: todayPx } = await supabase
-        .from("payouts")
-        .select("amount")
-        .eq("wallet_id", data.id)
-        .gte("created_at", todayStart.toISOString())
-        .not("status", "in", "(failed,rejected)");
-      setTodaySpent((todayPx ?? []).reduce((s, p) => s + Number(p.amount), 0));
-
-      const { data: px } = await supabase
-        .from("payouts")
-        .select("*")
-        .eq("wallet_id", data.id)
-        .order("created_at", { ascending: false })
-        .limit(10);
-      setPayouts(px ?? []);
-    }
+      .eq("wallet_id", wallet.id)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    setPayouts(px ?? []);
   };
 
   useEffect(() => {
     edgeCall("validate-account", { action: "banks" })
       .then((r) => setBanks(r.banks ?? []))
       .catch((e) => setBanner({ type: "error", text: e.message }));
-    loadWallet();
-  }, []);
+    loadPayouts();
+  }, [wallet?.id]);
 
   const checkName = async () => {
     if (!/^\d{10}$/.test(accountNumber) || !bankCode) return;
@@ -91,19 +74,15 @@ export default function Withdraw() {
       return;
     }
     if (value > Number(wallet.balance)) {
-      setBanner({ type: "error", text: "Amount exceeds your wallet balance." });
+      setBanner({ type: "error", text: "Amount exceeds available balance." });
       return;
     }
-    if (weeklySpent + value > Number(wallet.weekly_limit)) {
-      setBanner({ type: "error", text: "This would exceed your weekly withdrawal limit." });
-      return;
-    }
-    if (wallet.require_approval && wallet.approval_threshold > 0) {
-      const dayLimit = Number(wallet.approval_threshold);
+    if (householdControls.require_approval && householdControls.approval_threshold > 0) {
+      const dayLimit = Number(householdControls.approval_threshold);
       if (todaySpent + value > dayLimit) {
         setBanner({
           type: "error",
-          text: `Exceeds your daily spending limit of ${naira(dayLimit)}. You've already withdrawn ${naira(todaySpent)} today.`,
+          text: `Exceeds daily limit of ${naira(dayLimit)}. You've already withdrawn ${naira(todaySpent)} today.`,
         });
         return;
       }
@@ -121,7 +100,7 @@ export default function Withdraw() {
       setBanner({ type: "success", text: "Request submitted. Your parent will approve it — funds land in your bank shortly after." });
       setAmount("");
       setResolvedName("");
-      loadWallet();
+      loadPayouts();
     } catch (err) {
       setBanner({ type: "error", text: err.message });
     } finally {
@@ -129,15 +108,20 @@ export default function Withdraw() {
     }
   };
 
-  const weeklyLimit = Number(wallet?.weekly_limit ?? 0);
-  const weeklyRemaining = Math.max(weeklyLimit - weeklySpent, 0);
+  if (!parentLinked) {
+    return (
+      <Card className="p-8 text-center">
+        <p className="text-sm text-slate-500">You need to be linked to a parent to make withdrawals.</p>
+      </Card>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
       <Card className="p-6 lg:col-span-2">
         <h3 className="font-semibold text-slate-900">Withdraw to your bank account</h3>
         <p className="mt-1 text-sm text-slate-500">
-          Money leaves your wallet only after your parent approves — withdrawals respect your weekly and monthly limits.
+          Money leaves {parentName}'s wallet — your parent will approve before funds are sent.
         </p>
 
         {banner && (
@@ -203,14 +187,12 @@ export default function Withdraw() {
               className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
             />
             <p className="mt-2 text-xs text-slate-400">
-              Balance: <span className="font-semibold text-slate-600">{naira(Number(wallet?.balance ?? 0))}</span>
-              {" · "}Weekly remaining:{" "}
-              <span className="font-semibold text-slate-600">{naira(weeklyRemaining)}</span>
-              {wallet?.require_approval && wallet?.approval_threshold > 0 && (
+              Available: <span className="font-semibold text-slate-600">{naira(Number(wallet?.balance ?? 0))}</span>
+              {householdControls.require_approval && householdControls.approval_threshold > 0 && (
                 <>
                   {" · "}Daily limit:{" "}
                   <span className="font-semibold text-slate-600">
-                    {naira(Math.max(Number(wallet.approval_threshold) - todaySpent, 0))}
+                    {naira(Math.max(Number(householdControls.approval_threshold) - todaySpent, 0))}
                   </span>
                 </>
               )}

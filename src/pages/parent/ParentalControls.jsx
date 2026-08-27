@@ -12,19 +12,22 @@ export default function ParentalControls() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [householdId, setHouseholdId] = useState(null);
 
   const child = childrenList.find((c) => c.id === selected);
 
   useEffect(() => {
     if (!selected) return;
     setLoading(true);
+    setFeedback(null);
     supabase
-      .from("wallets")
-      .select("require_approval, approval_threshold, notify_on_every_transaction")
-      .eq("owner_id", selected)
+      .from("households")
+      .select("id, require_approval, approval_threshold, notify_on_every_transaction")
+      .eq("child_id", selected)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
+          setHouseholdId(data.id);
           setRequireApproval(data.require_approval ?? false);
           setApprovalThreshold(Number(data.approval_threshold ?? 0));
           setNotifyOnEveryTransaction(data.notify_on_every_transaction ?? false);
@@ -34,17 +37,17 @@ export default function ParentalControls() {
   }, [selected]);
 
   const handleSave = async () => {
-    if (!selected) return;
+    if (!householdId) return;
     setSaving(true);
     setFeedback(null);
     const { error } = await supabase
-      .from("wallets")
+      .from("households")
       .update({
         require_approval: requireApproval,
         approval_threshold: approvalThreshold,
         notify_on_every_transaction: notifyOnEveryTransaction,
       })
-      .eq("owner_id", selected);
+      .eq("id", householdId);
     if (error) {
       setFeedback({ type: "error", msg: error.message });
     } else {

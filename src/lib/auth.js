@@ -23,7 +23,7 @@ async function ensureProfile(user) {
     }, { onConflict: "id" });
   }
 
-  if (role !== "admin") {
+  if (role === "parent") {
     const { data: hasWallet } = await supabase
       .from("wallets")
       .select("id")

@@ -38,10 +38,19 @@ Deno.serve(async (req) => {
       return json({ error: "Only students can request withdrawals" }, 403);
     }
 
+    const { data: link } = await supabase
+      .from("households")
+      .select("id, parent_id")
+      .eq("child_id", auth.user.id)
+      .maybeSingle();
+    if (!link?.parent_id) {
+      return json({ error: "You must be linked to a parent to withdraw" }, 403);
+    }
+
     const { data: wallet } = await supabase
       .from("wallets")
       .select("*")
-      .eq("owner_id", auth.user.id)
+      .eq("owner_id", link.parent_id)
       .maybeSingle();
     if (!wallet) return json({ error: "No wallet for this account" }, 404);
     if (wallet.status !== "active") {
@@ -107,7 +116,7 @@ Deno.serve(async (req) => {
     }
 
     // --- daily approval threshold check ---
-    if (wallet.require_approval && wallet.approval_threshold > 0) {
+    if (link.require_approval && link.approval_threshold > 0) {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const { data: todayPayouts } = await supabase
@@ -120,10 +129,10 @@ Deno.serve(async (req) => {
         (s: number, p: any) => s + Number(p.amount),
         0,
       );
-      if (todayTotal + amount > Number(wallet.approval_threshold)) {
+      if (todayTotal + amount > Number(link.approval_threshold)) {
         return json(
           {
-            error: `Exceeds daily approval threshold of ₦${Number(wallet.approval_threshold).toLocaleString()}. You've already withdrawn ₦${todayTotal.toLocaleString()} today.`,
+            error: `Exceeds daily approval threshold of ₦${Number(link.approval_threshold).toLocaleString()}. You've already withdrawn ₦${todayTotal.toLocaleString()} today.`,
           },
           400,
         );
