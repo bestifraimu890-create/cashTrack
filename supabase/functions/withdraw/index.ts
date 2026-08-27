@@ -190,6 +190,7 @@ Deno.serve(async (req) => {
         }),
       });
     } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
       // Refund and fail the request
       await supabase.rpc("credit_wallet", {
         p_wallet_id: wallet.id,
@@ -199,6 +200,13 @@ Deno.serve(async (req) => {
         .from("payouts")
         .update({ status: "failed", updated_at: new Date().toISOString() })
         .eq("id", payout.id);
+      // Return a user-friendly message for common Monnify errors
+      if (errMsg.includes("does not belong to merchant")) {
+        return json(
+          { error: "Transfer failed: the bank or account details could not be verified. Please try a different bank or check the account number." },
+          502,
+        );
+      }
       return json(
         { error: e instanceof Error ? e.message : "Monnify rejected the transfer" },
         502,

@@ -102,7 +102,12 @@ export default function Withdraw() {
       setResolvedName("");
       loadPayouts();
     } catch (err) {
-      setBanner({ type: "error", text: err.message });
+      const msg = err.message || "Withdrawal request failed";
+      if (msg.includes("does not belong to merchant") || msg.includes("bank or account details")) {
+        setBanner({ type: "error", text: msg });
+      } else {
+        setBanner({ type: "error", text: msg });
+      }
     } finally {
       setLoading(false);
     }
