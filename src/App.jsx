@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "./supabase/client.js";
 import { useAuth } from "./context/AuthContext.jsx";
-import { ProtectedRoute, GuestRoute } from "./components/routes/ProtectedRoute.jsx";
+import { ProtectedRoute, RoleProtectedRoute, GuestRoute } from "./components/routes/ProtectedRoute.jsx";
 
 import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
@@ -93,9 +93,9 @@ export default function App() {
       <Route
         path="/student"
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute allowedRole="student">
             <StudentLayout />
-          </ProtectedRoute>
+          </RoleProtectedRoute>
         }
       >
         <Route index element={<StudentDashboard />} />
@@ -113,9 +113,9 @@ export default function App() {
       <Route
         path="/parent"
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute allowedRole="parent">
             <ParentLayout />
-          </ProtectedRoute>
+          </RoleProtectedRoute>
         }
       >
         <Route index element={<ParentDashboard />} />
@@ -134,9 +134,9 @@ export default function App() {
       <Route
         path="/admin"
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute allowedRole="admin">
             <AdminLayout />
-          </ProtectedRoute>
+          </RoleProtectedRoute>
         }
       >
         <Route index element={<AdminDashboard />} />
