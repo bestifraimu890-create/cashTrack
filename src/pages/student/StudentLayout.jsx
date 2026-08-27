@@ -31,6 +31,7 @@ export default function StudentLayout() {
   const [budgetLimits, setBudgetLimits] = useState({});
   const [parentName, setParentName] = useState("your parent");
   const [parentBalance, setParentBalance] = useState(0);
+  const [parentLinked, setParentLinked] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
   const walletBalance = Number(wallet?.balance ?? 0);
@@ -91,6 +92,7 @@ export default function StudentLayout() {
       .eq("child_id", user.id)
       .maybeSingle();
     if (links?.parent_id) {
+      setParentLinked(true);
       const { data: pp } = await supabase
         .from("profiles")
         .select("first_name")
@@ -177,6 +179,7 @@ export default function StudentLayout() {
     budgetLimits,
     notifications,
     parentName,
+    parentLinked,
     parentBalance,
     walletBalance,
     weeklySpent,
