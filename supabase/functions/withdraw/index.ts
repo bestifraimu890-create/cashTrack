@@ -106,6 +106,30 @@ Deno.serve(async (req) => {
       );
     }
 
+    // --- daily approval threshold check ---
+    if (wallet.require_approval && wallet.approval_threshold > 0) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const { data: todayPayouts } = await supabase
+        .from("payouts")
+        .select("amount")
+        .eq("wallet_id", wallet.id)
+        .gte("created_at", todayStart.toISOString())
+        .not("status", "in", "(failed,rejected)");
+      const todayTotal = (todayPayouts ?? []).reduce(
+        (s: number, p: any) => s + Number(p.amount),
+        0,
+      );
+      if (todayTotal + amount > Number(wallet.approval_threshold)) {
+        return json(
+          {
+            error: `Exceeds daily approval threshold of ₦${Number(wallet.approval_threshold).toLocaleString()}. You've already withdrawn ₦${todayTotal.toLocaleString()} today.`,
+          },
+          400,
+        );
+      }
+    }
+
     // --- name enquiry (fresh, server-side) ---
     const enquiry = await monnifyApi(
       `/api/v2/disbursements/account/validate?accountNumber=${accountNumber}&bankCode=${bankCode}`,

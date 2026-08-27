@@ -16,6 +16,7 @@ export default function Withdraw() {
   const [wallet, setWallet] = useState(null);
   const [payouts, setPayouts] = useState([]);
   const [weeklySpent, setWeeklySpent] = useState(0);
+  const [todaySpent, setTodaySpent] = useState(0);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [banner, setBanner] = useState(null);
@@ -35,6 +36,17 @@ export default function Withdraw() {
         .lt("amount", 0)
         .gte("created_at", new Date(Date.now() - 7 * 86400000).toISOString());
       setWeeklySpent((tx ?? []).reduce((s, t) => s + Math.abs(t.amount), 0));
+
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const { data: todayPx } = await supabase
+        .from("payouts")
+        .select("amount")
+        .eq("wallet_id", data.id)
+        .gte("created_at", todayStart.toISOString())
+        .not("status", "in", "(failed,rejected)");
+      setTodaySpent((todayPx ?? []).reduce((s, p) => s + Number(p.amount), 0));
+
       const { data: px } = await supabase
         .from("payouts")
         .select("*")
@@ -85,6 +97,16 @@ export default function Withdraw() {
     if (weeklySpent + value > Number(wallet.weekly_limit)) {
       setBanner({ type: "error", text: "This would exceed your weekly withdrawal limit." });
       return;
+    }
+    if (wallet.require_approval && wallet.approval_threshold > 0) {
+      const dayLimit = Number(wallet.approval_threshold);
+      if (todaySpent + value > dayLimit) {
+        setBanner({
+          type: "error",
+          text: `Exceeds your daily spending limit of ${naira(dayLimit)}. You've already withdrawn ${naira(todaySpent)} today.`,
+        });
+        return;
+      }
     }
     setLoading(true);
     setBanner(null);
@@ -184,6 +206,14 @@ export default function Withdraw() {
               Balance: <span className="font-semibold text-slate-600">{naira(Number(wallet?.balance ?? 0))}</span>
               {" · "}Weekly remaining:{" "}
               <span className="font-semibold text-slate-600">{naira(weeklyRemaining)}</span>
+              {wallet?.require_approval && wallet?.approval_threshold > 0 && (
+                <>
+                  {" · "}Daily limit:{" "}
+                  <span className="font-semibold text-slate-600">
+                    {naira(Math.max(Number(wallet.approval_threshold) - todaySpent, 0))}
+                  </span>
+                </>
+              )}
             </p>
           </div>
 

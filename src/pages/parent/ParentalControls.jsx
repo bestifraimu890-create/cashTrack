@@ -1,31 +1,57 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Toggle } from "../../components/common/index.js";
-import { Card } from "../../components/common/index.js";
+import { supabase } from "../../supabase/client.js";
+import { Toggle, Card } from "../../components/common/index.js";
 
 export default function ParentalControls() {
   const { childrenList } = useOutletContext();
   const [selected, setSelected] = useState(childrenList[0]?.id ?? "");
-  const [settings, setSettings] = useState(
-    Object.fromEntries(
-      childrenList.map((c) => [
-        c.id,
-        {
-          requireApproval: false,
-          approvalThreshold: 5000,
-          blockEntertainment: false,
-          allowCsvImport: true,
-          notifyOnEveryTransaction: false,
-        },
-      ])
-    )
-  );
+  const [requireApproval, setRequireApproval] = useState(false);
+  const [approvalThreshold, setApprovalThreshold] = useState(5000);
+  const [notifyOnEveryTransaction, setNotifyOnEveryTransaction] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const child = childrenList.find((c) => c.id === selected);
-  const current = settings[selected] || {};
 
-  const update = (key, value) =>
-    setSettings((prev) => ({ ...prev, [selected]: { ...prev[selected], [key]: value } }));
+  useEffect(() => {
+    if (!selected) return;
+    setLoading(true);
+    supabase
+      .from("wallets")
+      .select("require_approval, approval_threshold, notify_on_every_transaction")
+      .eq("owner_id", selected)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setRequireApproval(data.require_approval ?? false);
+          setApprovalThreshold(Number(data.approval_threshold ?? 0));
+          setNotifyOnEveryTransaction(data.notify_on_every_transaction ?? false);
+        }
+        setLoading(false);
+      });
+  }, [selected]);
+
+  const handleSave = async () => {
+    if (!selected) return;
+    setSaving(true);
+    setFeedback(null);
+    const { error } = await supabase
+      .from("wallets")
+      .update({
+        require_approval: requireApproval,
+        approval_threshold: approvalThreshold,
+        notify_on_every_transaction: notifyOnEveryTransaction,
+      })
+      .eq("owner_id", selected);
+    if (error) {
+      setFeedback({ type: "error", msg: error.message });
+    } else {
+      setFeedback({ type: "success", msg: "Settings saved." });
+    }
+    setSaving(false);
+  };
 
   return (
     <div className="space-y-5">
@@ -49,7 +75,7 @@ export default function ParentalControls() {
         </Card>
       )}
 
-      {child && (
+      {child && !loading && (
         <Card className="divide-y divide-slate-100">
           <div className="flex items-center justify-between p-5">
             <div>
@@ -58,50 +84,57 @@ export default function ParentalControls() {
                 {child.name} must get your approval before spending above the threshold
               </p>
             </div>
-            <Toggle checked={current.requireApproval} onChange={(v) => update("requireApproval", v)} />
+            <Toggle checked={requireApproval} onChange={setRequireApproval} />
           </div>
 
-          {current.requireApproval && (
-            <div className="flex items-center justify-between p-5">
+          <div className="flex items-center justify-between p-5">
+            <div>
               <p className="text-sm font-medium text-slate-800">Approval threshold</p>
-              <div className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5">
-                <span className="text-sm text-slate-400">₦</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={current.approvalThreshold}
-                  onChange={(e) => update("approvalThreshold", parseFloat(e.target.value) || 0)}
-                  className="w-24 bg-transparent text-sm outline-none"
-                />
-              </div>
+              <p className="text-xs text-slate-400">
+                {child.name} cannot spend more than this amount in a day without approval
+              </p>
             </div>
-          )}
-
-          <div className="flex items-center justify-between p-5">
-            <div>
-              <p className="text-sm font-medium text-slate-800">Block Entertainment category</p>
-              <p className="text-xs text-slate-400">Prevent spending on Entertainment purchases entirely</p>
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5">
+              <span className="text-sm text-slate-400">₦</span>
+              <input
+                type="number"
+                min="0"
+                value={approvalThreshold}
+                onChange={(e) => setApprovalThreshold(parseFloat(e.target.value) || 0)}
+                className="w-24 bg-transparent text-sm outline-none"
+              />
             </div>
-            <Toggle checked={current.blockEntertainment} onChange={(v) => update("blockEntertainment", v)} />
-          </div>
-
-          <div className="flex items-center justify-between p-5">
-            <div>
-              <p className="text-sm font-medium text-slate-800">Allow CSV import</p>
-              <p className="text-xs text-slate-400">Let {child.name} bulk-import expenses from a spreadsheet</p>
-            </div>
-            <Toggle checked={current.allowCsvImport} onChange={(v) => update("allowCsvImport", v)} />
           </div>
 
           <div className="flex items-center justify-between p-5">
             <div>
               <p className="text-sm font-medium text-slate-800">Notify on every transaction</p>
-              <p className="text-xs text-slate-400">Get an alert for each purchase, not just limit breaches</p>
+              <p className="text-xs text-slate-400">
+                Get an alert for each purchase, not just limit breaches
+              </p>
             </div>
-            <Toggle
-              checked={current.notifyOnEveryTransaction}
-              onChange={(v) => update("notifyOnEveryTransaction", v)}
-            />
+            <Toggle checked={notifyOnEveryTransaction} onChange={setNotifyOnEveryTransaction} />
+          </div>
+
+          <div className="p-5">
+            {feedback && (
+              <div
+                className={`mb-3 rounded-lg px-4 py-3 text-sm ${
+                  feedback.type === "error"
+                    ? "bg-red-50 text-red-700"
+                    : "bg-mint-50 text-mint-700"
+                }`}
+              >
+                {feedback.msg}
+              </div>
+            )}
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-lg bg-brand-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-50"
+            >
+              {saving ? "Saving…" : "Save Changes"}
+            </button>
           </div>
         </Card>
       )}
