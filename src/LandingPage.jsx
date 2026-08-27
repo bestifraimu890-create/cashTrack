@@ -228,19 +228,6 @@ function WalletMock() {
           ))}
         </div>
       </div>
-      <div className="absolute -right-6 -top-6 hidden rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-soft sm:block">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-100 text-gold-700">
-            <Bell size={13} />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-800">
-              Fund request sent
-            </p>
-            <p className="text-[11px] text-slate-400">to Mrs. Okafor</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
