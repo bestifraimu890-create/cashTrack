@@ -6,9 +6,9 @@ import { Card, ProgressBar, EmptyState, ChildAvatar } from "../../components/com
 
 export default function ParentDashboard() {
   const navigate = useNavigate();
-  const { user, childrenList, alerts } = useOutletContext();
+  const { user, childrenList, alerts, parentBalance } = useOutletContext();
 
-  const totalBalance = childrenList.reduce((s, c) => s + c.balance, 0);
+  const totalBalance = parentBalance + childrenList.reduce((s, c) => s + c.balance, 0);
   const totalWeeklySpent = childrenList.reduce((s, c) => s + (c.weeklySpent || 0), 0);
   const totalWeeklyLimit = childrenList.reduce((s, c) => s + c.weeklyLimit, 0);
 
@@ -25,6 +25,9 @@ export default function ParentDashboard() {
         <Card className="p-5">
           <p className="text-xs font-semibold uppercase text-slate-400">Combined Balance</p>
           <p className="mt-2 text-2xl font-bold text-slate-900">{naira(totalBalance)}</p>
+          <p className="mt-1 text-xs text-slate-400">
+            {naira(parentBalance)} yours + {naira(totalBalance - parentBalance)} across {childrenList.length} {childrenList.length === 1 ? "child" : "children"}
+          </p>
         </Card>
         <Card className="p-5">
           <p className="text-xs font-semibold uppercase text-slate-400">Spent This Week</p>

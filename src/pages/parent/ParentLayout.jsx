@@ -31,6 +31,7 @@ export default function ParentLayout() {
   const [allTransactions, setAllTransactions] = useState([]);
   const [allowanceHistory, setAllowanceHistory] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [parentBalance, setParentBalance] = useState(0);
 
   // Load real children from the DB on mount
   useEffect(() => {
@@ -39,6 +40,13 @@ export default function ParentLayout() {
   }, [user?.id]);
 
   const loadChildren = async () => {
+    const { data: pw } = await supabase
+      .from("wallets")
+      .select("balance")
+      .eq("owner_id", user.id)
+      .maybeSingle();
+    if (pw) setParentBalance(Number(pw.balance ?? 0));
+
     const { data: links } = await supabase
       .from("households")
       .select("child_id")
@@ -158,7 +166,7 @@ export default function ParentLayout() {
         />
         <main className="flex-1 px-4 py-6 lg:px-8">
           <h1 className="mb-6 hidden font-display text-2xl font-bold text-slate-900 lg:block">{pageTitle}</h1>
-          <Outlet context={{ user, childrenList, allTransactions, allowanceHistory, alerts, respondToAlert, loadChildren }} />
+          <Outlet context={{ user, childrenList, allTransactions, allowanceHistory, alerts, respondToAlert, loadChildren, parentBalance }} />
         </main>
       </div>
     </div>
