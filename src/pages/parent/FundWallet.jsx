@@ -25,6 +25,15 @@ export default function FundWallet() {
   const [manualName, setManualName] = useState("");
   const quickAmounts = [500, 1000, 2000, 5000];
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "success") {
+      setBanner({ type: "success", text: "Payment successful! Your wallet has been credited." });
+      window.history.replaceState({}, "", "/parent/fund");
+      setTimeout(load, 1000);
+    }
+  }, []);
+
   const load = async () => {
     const { data: w } = await supabase
       .from("wallets")
@@ -117,14 +126,11 @@ export default function FundWallet() {
     setLoading(true);
     setBanner(null);
     try {
-      const r = await edgeCall("fund-wallet", { action: "checkout", amount: value });
-      window.open(r.checkoutUrl, "_blank");
-      setBanner({ type: "success", text: "Payment page opened. Your wallet is credited automatically once payment completes." });
-      setAmount("");
-      setTimeout(load, 2000);
+      const redirectUrl = `${window.location.origin}/parent/fund?payment=success`;
+      const r = await edgeCall("fund-wallet", { action: "checkout", amount: value, redirectUrl });
+      window.location.href = r.checkoutUrl;
     } catch (err) {
       setBanner({ type: "error", text: err.message });
-    } finally {
       setLoading(false);
     }
   };
