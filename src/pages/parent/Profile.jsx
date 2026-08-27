@@ -57,6 +57,12 @@ export default function Profile() {
     if (error) {
       setFeedback({ type: "error", msg: error.message });
     } else {
+      if (updates.data) {
+        await supabase
+          .from("profiles")
+          .update({ first_name: firstName.trim(), last_name: lastName.trim() })
+          .eq("id", user.id);
+      }
       setFeedback({ type: "success", msg: "Profile updated successfully." });
       setNewPassword("");
       setConfirmPassword("");
