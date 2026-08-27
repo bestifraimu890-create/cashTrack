@@ -21,7 +21,7 @@ function runningBalanceSeries(transactions) {
 export default function StudentDashboard() {
   const navigate = useNavigate();
   const {
-    studentName, transactions, budgets, walletBalance, weeklySpent, weeklyLimit, parentName,
+    studentName, transactions, budgets, walletBalance, weeklySpent, weeklyLimit, parentName, parentBalance,
   } = useOutletContext();
 
   const recent = transactions.slice(0, 4);
@@ -41,6 +41,7 @@ export default function StudentDashboard() {
           <div className="mt-2 flex items-center gap-3">
             <span className="text-3xl font-bold font-display tabular-nums text-slate-900">{naira(walletBalance)}</span>
           </div>
+          <p className="mt-1 text-xs text-slate-400">Your available balance</p>
           {transactions.length === 0 ? (
             <div className="mt-6">
               <EmptyState
@@ -78,24 +79,12 @@ export default function StudentDashboard() {
         <Card className="flex flex-col gap-4 bg-brand-800 p-6 text-white">
           <div className="flex items-center gap-2">
             <Sparkles size={16} className="text-gold-300" />
-            <p className="font-semibold">Weekly Limit</p>
+            <p className="font-semibold">Parent's Wallet</p>
           </div>
-          {overBudget ? (
-            <div className="rounded-xl bg-brand-700/60 p-4">
-              <p className="text-sm font-semibold">{overBudget.category} is over budget</p>
-              <p className="mt-1 text-xs leading-relaxed text-brand-100">
-                You've spent {naira(overBudget.spent)} of your {naira(overBudget.budgeted)} {overBudget.category} budget.
-                Trim spending here to stay on track.
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-xl bg-brand-700/60 p-4">
-              <p className="text-sm font-semibold">You're on track</p>
-              <p className="mt-1 text-xs leading-relaxed text-brand-100">
-                No budgets are over their limit this month. Nice work.
-              </p>
-            </div>
-          )}
+          <div className="rounded-xl bg-brand-700/60 p-4">
+            <p className="text-xs text-brand-100">{parentName}'s available balance</p>
+            <p className="mt-1 text-2xl font-bold font-display tabular-nums">{naira(parentBalance)}</p>
+          </div>
           <div>
             <div className="mb-1 flex items-center justify-between text-xs text-brand-100">
               <span>WEEKLY LIMIT</span>

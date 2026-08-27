@@ -5,7 +5,7 @@ import { naira } from "../../lib/constants.js";
 import { Card, ProgressBar } from "../../components/common/index.js";
 
 export default function Wallet() {
-  const { walletBalance, weeklySpent, weeklyLimit, monthlySpent, monthlyLimit, parentName } = useOutletContext();
+  const { walletBalance, weeklySpent, weeklyLimit, monthlySpent, monthlyLimit, parentName, parentBalance } = useOutletContext();
   const [showFund, setShowFund] = useState(false);
 
   return (
@@ -13,7 +13,11 @@ export default function Wallet() {
       <Card className="bg-gradient-to-br from-brand-800 to-brand-600 p-6 text-white">
         <p className="text-xs font-semibold uppercase tracking-wide text-brand-100">Available Balance</p>
         <p className="mt-2 text-3xl font-bold font-display tabular-nums">{naira(walletBalance)}</p>
-        <p className="mt-1 text-xs text-brand-100">Linked to {parentName}'s CashTrack account</p>
+        <p className="mt-1 text-xs text-brand-100">Your wallet · linked to {parentName}</p>
+        <div className="mt-4 rounded-xl border border-white/20 bg-white/10 p-3">
+          <p className="text-xs text-brand-100">{parentName}'s wallet balance</p>
+          <p className="mt-1 text-xl font-bold font-display tabular-nums">{naira(parentBalance)}</p>
+        </div>
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             onClick={() => setShowFund(true)}
