@@ -2,7 +2,7 @@ import React from "react";
 import { useOutletContext } from "react-router-dom";
 import { Send } from "lucide-react";
 import { naira } from "../../lib/constants.js";
-import { Card } from "../../components/common/index.js";
+import { Card, EmptyState } from "../../components/common/index.js";
 
 export default function AllowanceHistory() {
   const { allowanceHistory } = useOutletContext();
@@ -19,8 +19,8 @@ export default function AllowanceHistory() {
                 <Send size={15} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-slate-800">{h.childName}</p>
-                <p className="text-xs text-slate-400">{h.merchant} · {new Date(h.created_at).toLocaleDateString("en-NG")}</p>
+                <p className="text-sm font-medium text-slate-800">{h.merchant}</p>
+                <p className="text-xs text-slate-400">{h.category} · {new Date(h.created_at).toLocaleDateString("en-NG")}</p>
               </div>
               <span className="text-sm font-semibold text-mint-600">+{naira(h.amount)}</span>
             </div>

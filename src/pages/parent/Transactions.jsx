@@ -5,15 +5,11 @@ import { naira } from "../../lib/constants.js";
 import { Card, CategoryIcon } from "../../components/common/index.js";
 
 export default function ParentTransactions() {
-  const { allTransactions, childrenList } = useOutletContext();
-  const [childFilter, setChildFilter] = useState("All");
+  const { allTransactions } = useOutletContext();
   const [query, setQuery] = useState("");
-  const filters = ["All", ...childrenList.map((c) => c.name)];
 
   const filtered = allTransactions.filter((t) => {
-    const matchesChild = childFilter === "All" || t.childName === childFilter;
-    const matchesQuery = (t.merchant || "").toLowerCase().includes(query.toLowerCase());
-    return matchesChild && matchesQuery;
+    return (t.merchant || "").toLowerCase().includes(query.toLowerCase());
   });
 
   return (
@@ -28,27 +24,14 @@ export default function ParentTransactions() {
             className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
           />
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {filters.map((f) => (
-            <button
-              key={f}
-              onClick={() => setChildFilter(f)}
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium ${
-                childFilter === f ? "bg-brand-700 text-white" : "bg-white text-slate-500 border border-slate-200"
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
       </div>
 
       <Card>
         {filtered.length === 0 ? (
           <div className="p-10 text-center text-sm text-slate-400">
             {allTransactions.length === 0
-              ? "No spending logged by your children yet."
-              : "No transactions match your filters."}
+              ? "No transactions yet. Spending from your linked children will appear here."
+              : "No transactions match your search."}
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
@@ -57,7 +40,7 @@ export default function ParentTransactions() {
                 <CategoryIcon category={t.category} size={17} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-800">{t.merchant}</p>
-                  <p className="text-xs text-slate-400">{t.childName} · {t.category} · {new Date(t.created_at).toLocaleDateString("en-NG")}</p>
+                  <p className="text-xs text-slate-400">{t.category} · {new Date(t.created_at).toLocaleDateString("en-NG")}</p>
                 </div>
                 <span className={`text-sm font-semibold ${t.amount > 0 ? "text-mint-600" : "text-slate-800"}`}>
                   {t.amount > 0 ? "+" : ""}

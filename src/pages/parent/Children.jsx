@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { PlusCircle, CheckCircle2, AlertTriangle, GraduationCap, Check } from "lucide-react";
+import { PlusCircle, CheckCircle2, AlertTriangle, GraduationCap } from "lucide-react";
 import { edgeCall } from "../../supabase/edge.js";
-import { naira } from "../../lib/constants.js";
 import { Card, ChildAvatar } from "../../components/common/index.js";
 
 export default function Children() {
@@ -94,23 +93,9 @@ export default function Children() {
                 Student
               </span>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className="rounded-lg bg-slate-50 p-3">
-                <p className="text-xs text-slate-400">Balance</p>
-                <p className="text-sm font-bold text-slate-800">{naira(c.balance)}</p>
-              </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <p className="text-xs text-slate-400">Weekly Limit</p>
-                <p className="text-sm font-bold text-slate-800">{naira(c.weeklyLimit)}</p>
-              </div>
+            <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+              Shares your wallet · All spending and withdrawals are visible in your Transactions and Alerts.
             </div>
-            <span
-              className={`mt-4 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                c.status === "active" ? "bg-brand-50 text-brand-700" : "bg-amber-50 text-amber-700"
-              }`}
-            >
-              <Check size={12} /> {c.status === "active" ? "Active" : "Pending approval"}
-            </span>
           </Card>
         ))}
       </div>

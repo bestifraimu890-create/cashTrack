@@ -42,10 +42,12 @@ export default function ParentLayout() {
   const loadChildren = async () => {
     const { data: pw } = await supabase
       .from("wallets")
-      .select("balance")
+      .select("id, balance")
       .eq("owner_id", user.id)
       .maybeSingle();
-    if (pw) setParentBalance(Number(pw.balance ?? 0));
+    if (pw) {
+      setParentBalance(Number(pw.balance ?? 0));
+    }
 
     const { data: links } = await supabase
       .from("households")
@@ -63,79 +65,41 @@ export default function ParentLayout() {
       .from("profiles")
       .select("id, first_name, last_name, school")
       .in("id", ids);
-    const { data: wallets } = await supabase
-      .from("wallets")
-      .select("id, owner_id, balance, weekly_limit, monthly_limit, status")
-      .in("owner_id", ids);
 
-    const childList = (profiles ?? []).map((p) => {
-      const w = (wallets ?? []).find((x) => x.owner_id === p.id);
-      return {
-        id: p.id,
-        name: `${p.first_name} ${p.last_name}`,
-        school: p.school,
-        balance: Number(w?.balance ?? 0),
-        weeklyLimit: Number(w?.weekly_limit ?? 5000),
-        monthlyLimit: Number(w?.monthly_limit ?? 18000),
-        weeklySpent: 0,
-        monthlySpent: 0,
-        status: w?.status ?? "active",
-        walletId: w?.id,
-      };
-    });
+    const childList = (profiles ?? []).map((p) => ({
+      id: p.id,
+      name: `${p.first_name} ${p.last_name}`,
+      school: p.school,
+    }));
     setChildrenList(childList);
 
-    const walletIds = childList.filter((c) => c.walletId).map((c) => c.walletId);
-    if (walletIds.length === 0) return;
+    // All transactions live on the parent's wallet (students use parent's wallet directly)
+    if (!pw?.id) return;
 
     const { data: tx } = await supabase
       .from("transactions")
       .select("*")
-      .in("wallet_id", walletIds)
+      .eq("wallet_id", pw.id)
       .order("created_at", { ascending: false });
-    const txWithName = (tx ?? []).map((t) => {
-      const child = childList.find((c) => c.walletId === t.wallet_id);
-      return { ...t, childName: child?.name ?? "Unknown" };
-    });
-    setAllTransactions(txWithName);
+    setAllTransactions(tx ?? []);
 
-    const income = txWithName.filter((t) => t.amount > 0);
+    const income = (tx ?? []).filter((t) => t.amount > 0);
     setAllowanceHistory(income);
 
-    const now = new Date();
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay());
-    weekStart.setHours(0, 0, 0, 0);
-    childList.forEach((c) => {
-      const childTx = (tx ?? []).filter((t) => t.wallet_id === c.walletId);
-      const weekSpend = childTx
-        .filter((t) => t.amount < 0 && new Date(t.created_at) >= weekStart)
-        .reduce((s, t) => s + Math.abs(t.amount), 0);
-      const monthSpend = childTx
-        .filter((t) => t.amount < 0 && new Date(t.created_at).getMonth() === now.getMonth())
-        .reduce((s, t) => s + Math.abs(t.amount), 0);
-      c.weeklySpent = weekSpend;
-      c.monthlySpent = monthSpend;
-    });
-    setChildrenList([...childList]);
-
+    // All payouts from the parent's wallet
     const { data: px } = await supabase
       .from("payouts")
-      .select("*, wallets(owner_id)")
-      .in("wallet_id", walletIds)
-      .in("status", ["pending_otp", "processing"])
+      .select("*")
+      .eq("wallet_id", pw.id)
       .order("created_at", { ascending: false });
     setAlerts(
-      (px ?? []).map((p) => {
-        const child = childList.find((c) => c.id === p.wallets?.owner_id);
-        return {
-          id: p.id,
-          type: "approval",
-          title: `Withdrawal request: ${naira(p.amount)}`,
-          body: `${child?.name ?? "Child"} wants to withdraw to ${p.bank_name} · ${p.account_number}`,
-          time: new Date(p.created_at).toLocaleDateString("en-NG"),
-        };
-      })
+      (px ?? []).filter((p) => p.status === "pending_otp" || p.status === "processing").map((p) => ({
+        id: p.id,
+        type: "approval",
+        title: `Withdrawal request: ${naira(p.amount)}`,
+        body: `To ${p.bank_name || "bank"} · ${p.account_number}`,
+        time: new Date(p.created_at).toLocaleDateString("en-NG"),
+      }))
     );
   };
 

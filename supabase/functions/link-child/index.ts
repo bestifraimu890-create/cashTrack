@@ -67,16 +67,6 @@ Deno.serve(async (req) => {
     });
     if (linkErr) throw linkErr;
 
-    // Auto-create wallet for student if missing
-    const { data: wallet } = await supabase
-      .from("wallets")
-      .select("id")
-      .eq("owner_id", student.id)
-      .maybeSingle();
-    if (!wallet) {
-      await supabase.from("wallets").insert({ owner_id: student.id });
-    }
-
     return json({
       linked: true,
       child: { id: student.id, name: `${student.first_name} ${student.last_name}` },
