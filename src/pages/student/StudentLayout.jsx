@@ -28,6 +28,7 @@ export default function StudentLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [payouts, setPayouts] = useState([]);
   const [budgetLimits, setBudgetLimits] = useState({});
   const [parentName, setParentName] = useState("your parent");
   const [parentLinked, setParentLinked] = useState(false);
@@ -117,6 +118,7 @@ export default function StudentLayout() {
         .select("*")
         .eq("wallet_id", pw.id)
         .order("created_at", { ascending: false });
+      setPayouts(px ?? []);
       setNotifications(
         (px ?? []).map((p) => ({
           id: p.id,
@@ -178,6 +180,7 @@ export default function StudentLayout() {
     user,
     wallet,
     transactions,
+    payouts,
     budgets,
     budgetLimits,
     notifications,
