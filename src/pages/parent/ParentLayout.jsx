@@ -93,13 +93,18 @@ export default function ParentLayout() {
       .eq("wallet_id", pw.id)
       .order("created_at", { ascending: false });
     setAlerts(
-      (px ?? []).filter((p) => p.status === "pending_otp" || p.status === "processing").map((p) => ({
-        id: p.id,
-        type: "approval",
-        title: `Withdrawal request: ${naira(p.amount)}`,
-        body: `To ${p.bank_name || "bank"} · ${p.account_number}`,
-        time: new Date(p.created_at).toLocaleDateString("en-NG"),
-      }))
+      (px ?? []).map((p) => {
+        const type = p.status === "completed" ? "success"
+          : p.status === "failed" || p.status === "rejected" ? "alert"
+          : "approval";
+        return {
+          id: p.id,
+          type,
+          title: `Withdrawal ${p.status === "completed" ? "completed" : p.status === "failed" || p.status === "rejected" ? p.status : "requested"}: ${naira(p.amount)}`,
+          body: `To ${p.bank_name || "bank"} · ${p.account_number}`,
+          time: new Date(p.created_at).toLocaleDateString("en-NG"),
+        };
+      })
     );
   };
 
