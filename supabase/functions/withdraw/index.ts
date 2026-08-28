@@ -9,8 +9,11 @@ import { getSourceAccount, monnifyApi } from "../_shared/monnify.ts";
  *   2. balance >= amount
  *   3. weeklySpent + amount <= weekly_limit
  *   4. monthlySpent + amount <= monthly_limit
- * Funds are reserved immediately (debit). Monnify sends an OTP to the app
- * owner's email; an admin enters it via confirm-payout to authorize.
+ *   5. daily approval threshold
+ *
+ * TEST MODE: If MONNIFY_DISBURSEMENTS is not enabled, the payout is
+ * auto-completed so the full flow can be tested end-to-end.
+ *
  * Body: { amount, accountNumber, bankCode, bankName }
  */
 Deno.serve(async (req) => {
@@ -40,7 +43,7 @@ Deno.serve(async (req) => {
 
     const { data: link } = await supabase
       .from("households")
-      .select("id, parent_id")
+      .select("id, parent_id, require_approval, approval_threshold")
       .eq("child_id", auth.user.id)
       .maybeSingle();
     if (!link?.parent_id) {
@@ -145,6 +148,11 @@ Deno.serve(async (req) => {
     );
     const accountName: string = enquiry.responseBody?.accountName ?? "";
 
+    // --- check if test mode (Monnify disbursements not enabled) ---
+    const testMode = Deno.env.get("MONNIFY_DISBURSEMENTS") !== "enabled";
+
+    const initialStatus = testMode ? "completed" : "pending_otp";
+
     // --- create payout record + reserve funds ---
     const { data: payout, error: payErr } = await supabase
       .from("payouts")
@@ -155,7 +163,7 @@ Deno.serve(async (req) => {
         account_number: accountNumber,
         bank_code: bankCode,
         bank_name: bankName || null,
-        status: "pending_otp",
+        status: initialStatus,
       })
       .select()
       .single();
@@ -173,7 +181,16 @@ Deno.serve(async (req) => {
       return json({ error: "Could not reserve funds" }, 400);
     }
 
-    // --- initiate the Monnify transfer (returns PENDING_AUTHORIZATION) ---
+    // --- TEST MODE: skip Monnify, auto-complete ---
+    if (testMode) {
+      return json({
+        payoutId: payout.id,
+        status: "completed",
+        message: "Withdrawal completed (test mode — Monnify disbursements not enabled).",
+      });
+    }
+
+    // --- LIVE MODE: initiate the Monnify transfer ---
     const reference = `CTP-${payout.id}`;
     try {
       await monnifyApi("/api/v2/disbursements/single", {
@@ -191,7 +208,6 @@ Deno.serve(async (req) => {
       });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      // Refund and fail the request
       await supabase.rpc("credit_wallet", {
         p_wallet_id: wallet.id,
         p_amount: amount,
@@ -200,7 +216,6 @@ Deno.serve(async (req) => {
         .from("payouts")
         .update({ status: "failed", updated_at: new Date().toISOString() })
         .eq("id", payout.id);
-      // Return a user-friendly message for common Monnify errors
       if (errMsg.includes("does not belong to merchant")) {
         return json(
           { error: "Transfer failed: the bank or account details could not be verified. Please try a different bank or check the account number." },

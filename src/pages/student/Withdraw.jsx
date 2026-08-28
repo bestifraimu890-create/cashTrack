@@ -91,13 +91,16 @@ export default function Withdraw() {
     setBanner(null);
     try {
       const bank = banks.find((b) => b.code === bankCode);
-      await edgeCall("withdraw", {
+      const result = await edgeCall("withdraw", {
         amount: value,
         accountNumber,
         bankCode,
         bankName: bank?.name ?? "",
       });
-      setBanner({ type: "success", text: "Request submitted. Your parent will approve it — funds land in your bank shortly after." });
+      const msg = result.status === "completed"
+        ? "Withdrawal completed (test mode). Funds deducted from wallet."
+        : "Request submitted. Your parent will approve it — funds land in your bank shortly after.";
+      setBanner({ type: "success", text: msg });
       setAmount("");
       setResolvedName("");
       loadPayouts();
