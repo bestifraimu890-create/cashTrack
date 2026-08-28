@@ -119,7 +119,6 @@ export default function AdminLayout() {
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <DashboardTopbar
           title={pageTitle}
-          placeholder="Search users, transactions..."
           onMenu={() => setMobileOpen(true)}
           user={user}
           initialsOf={initialsOf}

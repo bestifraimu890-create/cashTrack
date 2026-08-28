@@ -1,5 +1,5 @@
-import { NavLink } from "react-router-dom";
-import { HelpCircle, LogOut, Menu } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { HelpCircle, LogOut, Menu, Bell } from "lucide-react";
 
 export function DashboardSidebar({ brandLabel, items, alertCount = 0, supportLabel = "Support", supportIcon: SupportIcon, extraFooter, onLogout, mobileOpen, setMobileOpen }) {
   const content = (
@@ -71,22 +71,25 @@ export function DashboardSidebar({ brandLabel, items, alertCount = 0, supportLab
   );
 }
 
-export function DashboardTopbar({ title, placeholder, onMenu, user, initialsOf }) {
+export function DashboardTopbar({ title, placeholder, onMenu, user, initialsOf, alertCount = 0, alertsPath = "/parent/alerts" }) {
+  const navigate = useNavigate();
   return (
     <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-paper/80 px-4 py-4 backdrop-blur lg:px-8">
       <button onClick={onMenu} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden">
         <Menu size={20} />
       </button>
       <h1 className="text-lg font-bold font-display text-slate-900 lg:hidden">{title}</h1>
-      <div className="ml-auto hidden flex-1 max-w-sm items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 lg:flex">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-        <input
-          placeholder={placeholder}
-          className="w-full bg-transparent text-sm text-slate-600 outline-none placeholder:text-slate-400"
-        />
-      </div>
-      <button className="ml-auto relative rounded-full p-2 text-slate-500 hover:bg-slate-100">
-        <BellIcon />
+      <div className="ml-auto" />
+      <button
+        onClick={() => navigate(alertsPath)}
+        className="relative rounded-full p-2 text-slate-500 hover:bg-slate-100"
+      >
+        <Bell size={19} />
+        {alertCount > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+            {alertCount}
+          </span>
+        )}
       </button>
       <div
         className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white"
@@ -95,15 +98,6 @@ export function DashboardTopbar({ title, placeholder, onMenu, user, initialsOf }
         {initialsOf(user)}
       </div>
     </div>
-  );
-}
-
-function BellIcon() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-    </svg>
   );
 }
 

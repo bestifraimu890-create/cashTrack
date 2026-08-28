@@ -209,10 +209,11 @@ export default function StudentLayout() {
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <DashboardTopbar
           title={pageTitle}
-          placeholder="Search transactions, insights..."
           onMenu={() => setMobileOpen(true)}
           user={user}
           initialsOf={initialsOf}
+          alertCount={notifications.length}
+          alertsPath="/student/notifications"
         />
         <main className="flex-1 px-4 py-6 lg:px-8">
           <h1 className="mb-6 hidden font-display text-2xl font-bold text-slate-900 lg:block">{pageTitle}</h1>
