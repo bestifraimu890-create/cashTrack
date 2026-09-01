@@ -1,10 +1,10 @@
 import React from "react";
 import { useOutletContext } from "react-router-dom";
-import { AlertTriangle, Send, Bell, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Send, Bell, CheckCircle2, DollarSign } from "lucide-react";
 import { Card } from "../../components/common/index.js";
 
 export default function Alerts() {
-  const { alerts } = useOutletContext();
+  const { alerts, respondToFundRequest } = useOutletContext();
 
   const iconFor = (type) =>
     type === "alert" ? (
@@ -29,6 +29,22 @@ export default function Alerts() {
               <div className="flex-1">
                 <p className="text-sm font-semibold text-slate-800">{a.title}</p>
                 <p className="mt-0.5 text-sm text-slate-500">{a.body}</p>
+                {a.fundRequestStatus === "pending" && respondToFundRequest && (
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={() => respondToFundRequest(a.fundRequestId, "approved")}
+                      className="rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-semibold text-white"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => respondToFundRequest(a.fundRequestId, "declined")}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                )}
               </div>
               <span className="whitespace-nowrap text-xs text-slate-400">{a.time}</span>
             </div>

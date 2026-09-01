@@ -92,24 +92,57 @@ export default function ParentLayout() {
       .select("*")
       .eq("wallet_id", pw.id)
       .order("created_at", { ascending: false });
-    setAlerts(
-      (px ?? []).map((p) => {
-        const type = p.status === "completed" ? "success"
-          : p.status === "failed" || p.status === "rejected" ? "alert"
-          : "approval";
-        return {
-          id: p.id,
-          type,
-          title: `Withdrawal ${p.status === "completed" ? "completed" : p.status === "failed" || p.status === "rejected" ? p.status : "requested"}: ${naira(p.amount)}`,
-          body: `To ${p.bank_name || "bank"} · ${p.account_number}`,
-          time: new Date(p.created_at).toLocaleDateString("en-NG"),
-        };
-      })
-    );
+
+    // Fund requests from linked children
+    const { data: fr } = await supabase
+      .from("fund_requests")
+      .select("*")
+      .eq("parent_id", user.id)
+      .order("created_at", { ascending: false });
+
+    const payoutAlerts = (px ?? []).map((p) => {
+      const type = p.status === "completed" ? "success"
+        : p.status === "failed" || p.status === "rejected" ? "alert"
+        : "approval";
+      return {
+        id: `px-${p.id}`,
+        type,
+        title: `Withdrawal ${p.status === "completed" ? "completed" : p.status === "failed" || p.status === "rejected" ? p.status : "requested"}: ${naira(p.amount)}`,
+        body: `To ${p.bank_name || "bank"} · ${p.account_number}`,
+        time: new Date(p.created_at).toLocaleDateString("en-NG"),
+      };
+    });
+
+    const fundAlerts = (fr ?? []).map((r) => {
+      const child = childList.find((c) => c.id === r.student_id);
+      const type = r.status === "approved" ? "success"
+        : r.status === "declined" ? "alert"
+        : "approval";
+      return {
+        id: `fr-${r.id}`,
+        type,
+        title: `Fund request ${r.status}: ${naira(r.amount)}`,
+        body: `${child?.name ?? "Child"}${r.note ? ` — "${r.note}"` : ""}`,
+        time: new Date(r.created_at).toLocaleDateString("en-NG"),
+        fundRequestId: r.id,
+        fundRequestStatus: r.status,
+      };
+    });
+
+    setAlerts([...fundAlerts, ...payoutAlerts].sort((a, b) => new Date(b.time) - new Date(a.time)));
   };
 
   const respondToAlert = (id, decision) => {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const respondToFundRequest = async (id, status) => {
+    await supabase
+      .from("fund_requests")
+      .update({ status })
+      .eq("id", id);
+    setAlerts((prev) => prev.filter((a) => a.fundRequestId !== id));
+    loadChildren();
   };
 
   const pageTitle =
@@ -136,7 +169,7 @@ export default function ParentLayout() {
         />
         <main className="flex-1 px-4 py-6 lg:px-8">
           <h1 className="mb-6 hidden font-display text-2xl font-bold text-slate-900 lg:block">{pageTitle}</h1>
-          <Outlet context={{ user, childrenList, allTransactions, allowanceHistory, alerts, respondToAlert, loadChildren, parentBalance }} />
+          <Outlet context={{ user, childrenList, allTransactions, allowanceHistory, alerts, respondToAlert, respondToFundRequest, loadChildren, parentBalance }} />
         </main>
       </div>
     </div>

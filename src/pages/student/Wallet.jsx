@@ -1,13 +1,49 @@
 import React, { useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { Lock, ShieldCheck, CheckCircle2, X, Link2 } from "lucide-react";
+import { Lock, ShieldCheck, CheckCircle2, X, Link2, Send } from "lucide-react";
+import { supabase } from "../../supabase/client.js";
 import { naira } from "../../lib/constants.js";
 import { Card, ProgressBar } from "../../components/common/index.js";
 
 export default function Wallet() {
   const navigate = useNavigate();
-  const { walletBalance, weeklySpent, weeklyLimit, monthlySpent, monthlyLimit, parentName, parentLinked, parentBalance } = useOutletContext();
+  const { user, walletBalance, weeklySpent, weeklyLimit, monthlySpent, monthlyLimit, parentName, parentLinked, parentBalance } = useOutletContext();
   const [showFund, setShowFund] = useState(false);
+  const [fundAmount, setFundAmount] = useState("");
+  const [fundNote, setFundNote] = useState("");
+  const [sending, setSending] = useState(false);
+  const [fundStatus, setFundStatus] = useState(null);
+
+  const handleFundRequest = async () => {
+    const value = parseFloat(fundAmount);
+    if (!value || value <= 0) return;
+    setSending(true);
+    setFundStatus(null);
+    const { data: link } = await supabase
+      .from("households")
+      .select("parent_id")
+      .eq("child_id", user.id)
+      .maybeSingle();
+    if (!link?.parent_id) {
+      setFundStatus({ type: "error", msg: "No parent linked." });
+      setSending(false);
+      return;
+    }
+    const { error } = await supabase.from("fund_requests").insert({
+      student_id: user.id,
+      parent_id: link.parent_id,
+      amount: value,
+      note: fundNote.trim() || null,
+    });
+    if (error) {
+      setFundStatus({ type: "error", msg: error.message });
+    } else {
+      setFundStatus({ type: "success", msg: `Request for ${naira(value)} sent to ${parentName}.` });
+      setFundAmount("");
+      setFundNote("");
+    }
+    setSending(false);
+  };
 
   if (!parentLinked) {
     return (
@@ -42,7 +78,7 @@ export default function Wallet() {
         <p className="mt-1 text-xs text-brand-100">{parentName}'s wallet · available for you</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <button
-            onClick={() => setShowFund(true)}
+            onClick={() => setShowFund(!showFund)}
             className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-800"
           >
             Request Funds
@@ -51,13 +87,48 @@ export default function Wallet() {
       </Card>
 
       {showFund && (
-        <div className="flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-800">
-          <CheckCircle2 size={18} />
-          Fund request sent to {parentName}. You'll get a notification once it's approved.
-          <button onClick={() => setShowFund(false)} className="ml-auto text-mint-600">
-            <X size={16} />
-          </button>
-        </div>
+        <Card className="p-5">
+          <h3 className="font-semibold text-slate-900">Request Funds from {parentName}</h3>
+          <p className="mt-1 text-sm text-slate-500">Your parent will be notified and can approve or decline.</p>
+          {fundStatus && (
+            <div className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+              fundStatus.type === "success" ? "bg-mint-50 text-mint-700" : "bg-red-50 text-red-600"
+            }`}>
+              {fundStatus.type === "success" ? <CheckCircle2 size={16} /> : <X size={16} />}
+              {fundStatus.msg}
+            </div>
+          )}
+          <div className="mt-4 space-y-3">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">Amount (₦)</label>
+              <input
+                type="number"
+                min="0"
+                value={fundAmount}
+                onChange={(e) => setFundAmount(e.target.value)}
+                placeholder="e.g. 5000"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">Note (optional)</label>
+              <input
+                value={fundNote}
+                onChange={(e) => setFundNote(e.target.value)}
+                placeholder="e.g. For school supplies"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+              />
+            </div>
+            <button
+              onClick={handleFundRequest}
+              disabled={sending || !fundAmount}
+              className="flex items-center gap-2 rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              <Send size={14} />
+              {sending ? "Sending…" : "Send Request"}
+            </button>
+          </div>
+        </Card>
       )}
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
