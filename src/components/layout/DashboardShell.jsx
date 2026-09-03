@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { HelpCircle, LogOut, Menu, Bell } from "lucide-react";
+import { LogOut, Menu, Bell } from "lucide-react";
 
-export function DashboardSidebar({ brandLabel, items, alertCount = 0, supportLabel = "Support", supportIcon: SupportIcon, extraFooter, onLogout, mobileOpen, setMobileOpen }) {
+export function DashboardSidebar({ brandLabel, items, alertCount = 0, extraFooter, onLogout, mobileOpen, setMobileOpen }) {
   const content = (
     <div className="flex h-full flex-col bg-white">
       <div className="flex items-center gap-2 px-6 py-6">
@@ -41,10 +41,6 @@ export function DashboardSidebar({ brandLabel, items, alertCount = 0, supportLab
 
       <div className="space-y-1 border-t border-slate-100 px-3 py-3">
         {extraFooter}
-        <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50">
-          {SupportIcon ? <SupportIcon size={18} className="text-slate-400" /> : <HelpCircle size={18} className="text-slate-400" />}
-          {supportLabel}
-        </button>
         <button
           onClick={onLogout}
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50"

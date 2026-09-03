@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutGrid, Users, Wallet as WalletIcon, Receipt, Percent,
-  FileBarChart2, Settings, Send,
+  FileBarChart2, Send,
 } from "lucide-react";
 import { supabase } from "../../supabase/client.js";
 import { initialsOf } from "../../lib/constants.js";
@@ -110,8 +110,6 @@ export default function AdminLayout() {
       <DashboardSidebar
         brandLabel="Super Admin"
         items={NAV}
-        supportLabel="Platform Settings"
-        supportIcon={Settings}
         mobileOpen={mobileOpen}
         setMobileOpen={setMobileOpen}
         onLogout={async () => { await logout(); navigate("/", { replace: true }); }}
