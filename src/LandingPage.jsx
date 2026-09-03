@@ -110,19 +110,19 @@ function Navbar({ onGoToLogin, onGoToSignup }) {
   const links = [
     { href: "#how-it-works", label: "How it works" },
     { href: "#who-its-for", label: "Who it's for" },
-    { href: "#revenue", label: "How we make money" },
+    { href: "#revenue", label: "Pricing" },
   ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-paper/90 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-brand-100/50 bg-paper/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 lg:px-8">
         <Logo />
-        <nav className="hidden items-center gap-8 lg:flex">
+        <nav className="hidden items-center gap-1 lg:flex">
           {links.map((l) => (
             <a
               key={l.href}
               href={l.href}
-              className="text-sm font-medium text-slate-600 hover:text-brand-700"
+              className="rounded-lg px-3.5 py-2 text-sm font-medium text-brand-700/70 transition-colors hover:bg-brand-50 hover:text-brand-700"
             >
               {l.label}
             </a>
@@ -131,47 +131,47 @@ function Navbar({ onGoToLogin, onGoToSignup }) {
         <div className="hidden items-center gap-3 lg:flex">
           <button
             onClick={onGoToLogin}
-            className="text-sm font-semibold text-slate-600 hover:text-brand-700"
+            className="rounded-lg px-4 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50"
           >
-            Log In
+            Log in
           </button>
           <button
             onClick={onGoToSignup}
-            className="rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800"
+            className="rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-800 hover:shadow-md"
           >
             Get Started Free
           </button>
         </div>
         <button
           onClick={() => setOpen((o) => !o)}
-          className="rounded-lg p-2 text-slate-600 lg:hidden"
+          className="rounded-lg p-2 text-brand-700 transition-colors hover:bg-brand-50 lg:hidden"
         >
           {open ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
       {open && (
-        <div className="border-t border-slate-200 bg-white px-5 py-4 lg:hidden">
-          <div className="flex flex-col gap-4">
+        <div className="border-t border-brand-100/50 bg-paper/95 px-5 py-5 backdrop-blur-xl lg:hidden">
+          <div className="flex flex-col gap-1">
             {links.map((l) => (
               <a
                 key={l.href}
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className="text-sm font-medium text-slate-600"
+                className="rounded-lg px-3 py-2.5 text-sm font-medium text-brand-700/70 transition-colors hover:bg-brand-50 hover:text-brand-700"
               >
                 {l.label}
               </a>
             ))}
-            <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
+            <div className="mt-3 flex flex-col gap-2 border-t border-brand-100/50 pt-4">
               <button
                 onClick={onGoToLogin}
-                className="rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-700"
+                className="rounded-lg border border-brand-200 py-2.5 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50"
               >
-                Log In
+                Log in
               </button>
               <button
                 onClick={onGoToSignup}
-                className="rounded-lg bg-brand-700 py-2.5 text-sm font-semibold text-white"
+                className="rounded-lg bg-brand-700 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-800"
               >
                 Get Started Free
               </button>
