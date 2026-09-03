@@ -193,8 +193,8 @@ function WalletMock() {
   ];
   return (
     <div className="relative mx-auto w-full max-w-sm">
-      <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-gradient-to-br from-brand-200/60 via-gold-100/40 to-transparent blur-2xl" />
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
+      <div className="absolute -inset-4 -z-10 rounded-[2rem] bg-gradient-to-br from-brand-400/30 via-mint-400/20 to-transparent blur-2xl" />
+      <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/95 shadow-2xl backdrop-blur-sm">
         <div className="bg-gradient-to-br from-brand-800 to-brand-600 p-6 text-white">
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-100">
             Wallet Balance
@@ -234,48 +234,67 @@ function WalletMock() {
 
 function Hero({ onGoToSignup }) {
   return (
-    <section className="relative overflow-hidden">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-5 py-16 sm:py-20 lg:grid-cols-2 lg:px-8 lg:py-28">
+    <section className="relative min-h-[600px] overflow-hidden lg:min-h-[700px]">
+      {/* Background image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url('https://images.unsplash.com/photo-1523050854058-8df90110c8f1?auto=format&fit=crop&w=1920&q=80')`,
+        }}
+      />
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-brand-900/70" />
+      {/* Subtle pattern overlay */}
+      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
+      {/* Content */}
+      <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-5 py-20 sm:py-24 lg:grid-cols-2 lg:px-8 lg:py-28">
         <div>
-          <span className="hero-entrance inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700">
+          <span className="hero-entrance inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-mint-400" />
             Built for secondary school life in Nigeria
           </span>
-          <h1 className="hero-entrance-delay mt-5 font-display text-4xl font-bold leading-[1.1] text-slate-900 sm:text-5xl">
+          <h1 className="hero-entrance-delay mt-6 font-display text-4xl font-bold leading-[1.1] text-white sm:text-5xl lg:text-6xl">
             Money, sorted
             <br />
-            between home and <span className="text-brand-700">school</span>.
+            between{" "}
+            <span className="bg-gradient-to-r from-mint-400 to-mint-300 bg-clip-text text-transparent">
+              home
+            </span>{" "}
+            and{" "}
+            <span className="bg-gradient-to-r from-brand-300 to-brand-200 bg-clip-text text-transparent">
+              school
+            </span>
+            .
           </h1>
-          <p className="hero-entrance-delay-2 mt-5 max-w-md text-lg leading-relaxed text-slate-600">
+          <p className="hero-entrance-delay-2 mt-6 max-w-md text-lg leading-relaxed text-slate-300">
             CashTrack gives secondary school students a real wallet with real
             limits, and gives parents visibility without micromanaging. No
-            subscriptions, no locked features just a small fee when money
+            subscriptions, no locked features — just a small fee when money
             actually moves.
           </p>
           <div className="hero-entrance-delay-2 mt-8 flex flex-wrap items-center gap-4">
             <button
               onClick={onGoToSignup}
-              className="flex items-center gap-2 rounded-xl bg-brand-700 px-6 py-3.5 text-sm font-semibold text-white hover:bg-brand-800"
+              className="flex items-center gap-2 rounded-xl bg-white px-7 py-4 text-sm font-semibold text-slate-900 shadow-lg transition-all hover:bg-brand-50 hover:shadow-xl"
             >
               Get Started Free <ArrowRight size={16} />
             </button>
             <a
               href="#how-it-works"
-              className="text-sm font-semibold text-slate-600 hover:text-brand-700"
+              className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 py-4 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/10"
             >
               See how it works
             </a>
           </div>
-          <div className="hero-entrance-delay-3 mt-10 flex items-center gap-6 text-xs text-slate-500">
+          <div className="hero-entrance-delay-3 mt-10 flex items-center gap-6 text-xs text-slate-400">
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 size={14} className="text-mint-600" /> Free to use
+              <CheckCircle2 size={14} className="text-mint-400" /> Free to use
             </span>
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 size={14} className="text-mint-600" /> No hidden
-              tiers
+              <CheckCircle2 size={14} className="text-mint-400" /> No hidden tiers
             </span>
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 size={14} className="text-mint-600" /> Bank-level
-              security
+              <CheckCircle2 size={14} className="text-mint-400" /> Bank-level security
             </span>
           </div>
         </div>
@@ -283,6 +302,8 @@ function Hero({ onGoToSignup }) {
           <WalletMock />
         </div>
       </div>
+      {/* Bottom gradient fade */}
+      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-paper to-transparent" />
     </section>
   );
 }
