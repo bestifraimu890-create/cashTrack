@@ -114,8 +114,8 @@ function Navbar({ onGoToLogin, onGoToSignup }) {
   ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-brand-100/50 bg-paper/80 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 lg:px-8">
+    <header className="sticky top-4 z-40 border-b rounded-full border-brand-400 bg-paper/80 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-2 py-1 lg:px-8">
         <Logo />
         <nav className="hidden items-center gap-1 lg:flex">
           {links.map((l) => (
