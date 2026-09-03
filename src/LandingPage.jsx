@@ -242,14 +242,14 @@ function Hero({ onGoToSignup }) {
           backgroundImage: `url('https://images.unsplash.com/photo-1523050854058-8df90110c8f1?auto=format&fit=crop&w=1920&q=80')`,
         }}
       />
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-brand-900/70" />
-      {/* Subtle pattern overlay */}
+      {/* Dark overlay — brand-900 (ink violet) */}
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-900/95 via-brand-900/85 to-brand-800/75" />
+      {/* Subtle pattern */}
       <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
       {/* Content */}
       <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-5 py-20 sm:py-24 lg:grid-cols-2 lg:px-8 lg:py-28">
         <div>
-          <span className="hero-entrance inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm">
+          <span className="hero-entrance inline-flex items-center gap-2 rounded-full border border-brand-400/30 bg-brand-400/10 px-4 py-2 text-xs font-semibold text-brand-200 backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-mint-400" />
             Built for secondary school life in Nigeria
           </span>
@@ -266,7 +266,7 @@ function Hero({ onGoToSignup }) {
             </span>
             .
           </h1>
-          <p className="hero-entrance-delay-2 mt-6 max-w-md text-lg leading-relaxed text-slate-300">
+          <p className="hero-entrance-delay-2 mt-6 max-w-md text-lg leading-relaxed text-brand-200/80">
             CashTrack gives secondary school students a real wallet with real
             limits, and gives parents visibility without micromanaging. No
             subscriptions, no locked features — just a small fee when money
@@ -275,18 +275,18 @@ function Hero({ onGoToSignup }) {
           <div className="hero-entrance-delay-2 mt-8 flex flex-wrap items-center gap-4">
             <button
               onClick={onGoToSignup}
-              className="flex items-center gap-2 rounded-xl bg-white px-7 py-4 text-sm font-semibold text-slate-900 shadow-lg transition-all hover:bg-brand-50 hover:shadow-xl"
+              className="flex items-center gap-2 rounded-xl bg-white px-7 py-4 text-sm font-semibold text-brand-800 shadow-lg transition-all hover:bg-brand-50 hover:shadow-xl"
             >
               Get Started Free <ArrowRight size={16} />
             </button>
             <a
               href="#how-it-works"
-              className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 py-4 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/10"
+              className="flex items-center gap-2 rounded-xl border border-brand-400/30 bg-brand-400/10 px-6 py-4 text-sm font-semibold text-brand-100 backdrop-blur-sm transition-all hover:bg-brand-400/20"
             >
               See how it works
             </a>
           </div>
-          <div className="hero-entrance-delay-3 mt-10 flex items-center gap-6 text-xs text-slate-400">
+          <div className="hero-entrance-delay-3 mt-10 flex items-center gap-6 text-xs text-brand-200/70">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 size={14} className="text-mint-400" /> Free to use
             </span>
