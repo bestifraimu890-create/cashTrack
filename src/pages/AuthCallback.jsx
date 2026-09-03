@@ -1,35 +1,51 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/client.js";
+import { ensureProfile } from "../lib/auth.js";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const handleAuth = async () => {
-      const hash = window.location.hash;
-      const params = new URLSearchParams(window.location.search);
-      const type = params.get("type");
+    (async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
 
-      if (hash && hash.includes("access_token")) {
-        const { data, error } = await supabase.auth.getSession();
-        if (!error && data.session) {
-          window.dispatchEvent(new CustomEvent("signup-verified"));
+        // PKCE flow (?code=...) — exchange it for a session
+        if (params.get("code")) {
+          await supabase.auth.exchangeCodeForSession(params.get("code"));
+        }
+
+        // Hash flow (#access_token=...) is picked up automatically by the client
+        const { data } = await supabase.auth.getSession();
+        const sessionUser = data.session?.user ?? null;
+
+        if (sessionUser) {
+          // Create the profile (with the role chosen at signup) BEFORE
+          // routing, so /app sends parents to /parent and students to /student.
+          try {
+            await ensureProfile(sessionUser);
+          } catch {
+            /* profile creation is best-effort here; RoleRouter retries the lookup */
+          }
+          try {
+            localStorage.setItem("cashtrack_signup_verified", sessionUser.email ?? "");
+          } catch {
+            /* ignore storage errors */
+          }
+          navigate("/app", { replace: true });
+          return;
+        }
+
+        if (params.get("type") === "signup") {
           navigate("/signup", { replace: true });
           return;
         }
+      } catch {
+        /* fall through to login */
       }
-
-      if (type === "signup") {
-        window.dispatchEvent(new CustomEvent("signup-verified"));
-        navigate("/signup", { replace: true });
-        return;
-      }
-
       navigate("/login", { replace: true });
-    };
-
-    handleAuth();
+    })();
   }, [navigate]);
 
   return (

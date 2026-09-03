@@ -4,7 +4,10 @@ import { Check, GraduationCap, Users, Eye, EyeOff, Mail } from "lucide-react";
 import { supabase } from "../supabase/client.js";
 import { ensureProfile } from "../lib/auth.js";
 import { AuthShell } from "../components/layout/AuthShell.jsx";
-import { ErrorBanner, LoadingButton } from "../components/common/index.js";
+import { ErrorBanner } from "../components/common/index.js";
+
+const PENDING_KEY = "cashtrack_pending_signup";
+const VERIFIED_KEY = "cashtrack_signup_verified";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -23,26 +26,39 @@ export default function Signup() {
 
   const steps = ["Account", "Profile", "Verify"];
 
+  // Restore pending signup (survives the magic-link redirect) and watch for
+  // verification completed in another tab.
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash && hash.includes("access_token")) {
-      supabase.auth.getSession().then(({ data, error }) => {
-        if (!error && data.session) {
+    try {
+      const pending = JSON.parse(localStorage.getItem(PENDING_KEY) || "null");
+      if (pending) {
+        if (pending.firstName) setFirstName(pending.firstName);
+        if (pending.lastName) setLastName(pending.lastName);
+        if (pending.email) setEmail(pending.email);
+        if (pending.role) setRole(pending.role);
+        if (pending.school) setSchool(pending.school);
+        if (pending.phone) setPhone(pending.phone);
+        const verifiedEmail = localStorage.getItem(VERIFIED_KEY) || "";
+        if (
+          verifiedEmail &&
+          pending.email &&
+          verifiedEmail.toLowerCase() === pending.email.toLowerCase()
+        ) {
           setEmailVerified(true);
           setStep(3);
-          window.location.hash = "";
         }
-      });
+      }
+    } catch {
+      /* ignore corrupt storage */
     }
-  }, []);
-
-  useEffect(() => {
-    const handler = () => {
-      setEmailVerified(true);
-      setStep(3);
+    const onStorage = (e) => {
+      if (e.key === VERIFIED_KEY && e.newValue) {
+        setEmailVerified(true);
+        setStep(3);
+      }
     };
-    window.addEventListener("signup-verified", handler);
-    return () => window.removeEventListener("signup-verified", handler);
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   const next = () => {
@@ -76,21 +92,72 @@ export default function Signup() {
     setLoading(true);
     setError("");
     try {
+      const trimmedEmail = email.trim();
+      const metadata = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        role,
+        school: role === "student" ? school.trim() : null,
+        phone: role === "parent" ? phone.trim() : null,
+      };
+
+      // Persist everything except the password so a page reload (or the
+      // redirect back from the magic link) doesn't lose the form.
+      try {
+        localStorage.setItem(
+          PENDING_KEY,
+          JSON.stringify({
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            email: trimmedEmail,
+            role,
+            school: school.trim(),
+            phone: phone.trim(),
+          })
+        );
+      } catch {
+        /* ignore storage errors */
+      }
+
+      // 1) Create the account FIRST (with password + role metadata) so the
+      //    role is stored before the magic link is ever clicked.
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password,
+        options: { data: metadata },
+      });
+      if (signUpError) {
+        const msg = signUpError.message || "";
+        // Resend case: account already exists — just send a fresh link.
+        if (!/already registered|already exists|already been registered/i.test(msg)) {
+          throw signUpError;
+        }
+      }
+
+      // 2) Make sure the profile (with the chosen role) exists now.
+      let accountUser = signUpData?.user ?? null;
+      if (!accountUser) {
+        const { data } = await supabase.auth.getUser();
+        accountUser = data.user ?? null;
+      }
+      if (accountUser) {
+        try {
+          await ensureProfile(accountUser);
+        } catch {
+          /* AuthCallback retries this after the link is clicked */
+        }
+      }
+
+      // 3) Send the magic-link verification email.
       const redirectUrl = `${window.location.origin}/auth/callback?type=signup`;
       const { error: otpError } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-            role,
-            school: role === "student" ? school.trim() : null,
-            phone: role === "parent" ? phone.trim() : null,
-          },
-        },
+        email: trimmedEmail,
+        options: { emailRedirectTo: redirectUrl },
       });
       if (otpError) throw otpError;
+
+      // 4) Sign out until the link is clicked — the account stays unverified.
+      await supabase.auth.signOut();
       setStep(3);
     } catch (err) {
       setError(err.message);
@@ -99,40 +166,13 @@ export default function Signup() {
     }
   };
 
-  const submit = async (e) => {
-    e.preventDefault();
-    setError("");
-    if (!emailVerified) {
-      setError("Please verify your email first.");
-      return;
-    }
-    setLoading(true);
+  const goToLogin = () => {
     try {
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          data: {
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-            role,
-            school: role === "student" ? school.trim() : null,
-            phone: role === "parent" ? phone.trim() : null,
-          },
-        },
-      });
-      if (signUpError) throw signUpError;
-      if (!signUpData.user) {
-        throw new Error("Sign-up failed. Please try again.");
-      }
-
-      await ensureProfile(signUpData.user);
-      navigate("/login", { replace: true });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      localStorage.removeItem(PENDING_KEY);
+    } catch {
+      /* ignore */
     }
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -297,12 +337,18 @@ export default function Signup() {
             </p>
           </div>
           {emailVerified ? (
-            <form onSubmit={submit} className="space-y-4">
+            <div className="space-y-4">
               <div className="flex items-center gap-2 rounded-lg bg-mint-50 p-3 text-sm text-mint-700">
                 <Check size={16} /> Email verified successfully
               </div>
-              <LoadingButton loading={loading}>Create Account</LoadingButton>
-            </form>
+              <button
+                type="button"
+                onClick={goToLogin}
+                className="w-full rounded-lg bg-brand-700 py-2.5 text-sm font-semibold text-white"
+              >
+                Continue to Log In
+              </button>
+            </div>
           ) : (
             <button
               type="button"
