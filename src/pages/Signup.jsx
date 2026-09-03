@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Check, GraduationCap, Users, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Check, GraduationCap, Users, Eye, EyeOff, ShieldCheck, Mail } from "lucide-react";
 import { supabase } from "../supabase/client.js";
 import { ensureProfile } from "../lib/auth.js";
 import { AuthShell } from "../components/layout/AuthShell.jsx";
@@ -17,12 +17,33 @@ export default function Signup() {
   const [role, setRole] = useState("student");
   const [school, setSchool] = useState("");
   const [phone, setPhone] = useState("");
-  const [otpCode, setOtpCode] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const steps = ["Account", "Verify", "Profile"];
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes("access_token")) {
+      supabase.auth.getSession().then(({ data, error }) => {
+        if (!error && data.session) {
+          setEmailVerified(true);
+          setStep(3);
+          window.location.hash = "";
+        }
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => {
+      setEmailVerified(true);
+      setStep(3);
+    };
+    window.addEventListener("signup-verified", handler);
+    return () => window.removeEventListener("signup-verified", handler);
+  }, []);
 
   const next = () => {
     setError("");
@@ -39,17 +60,25 @@ export default function Signup() {
         setError("Password needs at least 8 characters.");
         return;
       }
-      sendOtp();
+      sendMagicLink();
     }
   };
 
-  const sendOtp = async () => {
+  const sendMagicLink = async () => {
     setLoading(true);
     setError("");
     try {
+      const redirectUrl = `${window.location.origin}/auth/callback?type=signup`;
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email: email.trim(),
-        options: { shouldCreateUser: false },
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            role,
+          },
+        },
       });
       if (otpError) throw otpError;
       setStep(2);
@@ -58,34 +87,6 @@ export default function Signup() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const verifyOtp = async () => {
-    if (!otpCode.trim() || otpCode.trim().length !== 6) {
-      setError("Enter the 6-digit code sent to your email.");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: otpCode.trim(),
-        type: "email",
-      });
-      if (verifyError) throw verifyError;
-      setEmailVerified(true);
-      setStep(3);
-    } catch (err) {
-      setError("Invalid or expired code. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const back = () => {
-    setError("");
-    setStep((s) => Math.max(1, s - 1));
   };
 
   const submit = async (e) => {
@@ -216,40 +217,33 @@ export default function Signup() {
             </div>
           </div>
           <button type="button" onClick={next} disabled={loading} className="w-full rounded-lg bg-brand-700 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
-            {loading ? "Sending code…" : "Continue"}
+            {loading ? "Sending link…" : "Continue"}
           </button>
         </div>
       )}
 
       {step === 2 && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-lg bg-brand-50 p-4">
-            <ShieldCheck size={20} className="shrink-0 text-brand-700" />
-            <div>
-              <p className="text-sm font-semibold text-brand-800">Email verification</p>
-              <p className="text-xs text-brand-600">We sent a 6-digit code to <span className="font-semibold">{email}</span></p>
+          <div className="flex flex-col items-center rounded-lg bg-brand-50 p-6 text-center">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-100">
+              <Mail size={24} className="text-brand-700" />
             </div>
+            <p className="text-sm font-semibold text-brand-800">Check your email</p>
+            <p className="mt-1 text-sm text-brand-600">
+              We sent a verification link to<br />
+              <span className="font-semibold">{email}</span>
+            </p>
+            <p className="mt-3 text-xs text-brand-500">
+              Click the link in the email to verify your account, then come back here to continue.
+            </p>
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">Verification Code</label>
-            <input
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="000000"
-              maxLength={6}
-              className="w-full rounded-lg border border-slate-200 px-3 py-3 text-center font-mono text-lg font-semibold tracking-[0.3em] outline-none focus:border-brand-500"
-            />
-          </div>
-          <div className="flex gap-3">
-            <button type="button" onClick={back} className="w-full rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600">
-              Back
-            </button>
-            <button type="button" onClick={verifyOtp} disabled={loading} className="w-full rounded-lg bg-brand-700 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
-              {loading ? "Verifying…" : "Verify Email"}
-            </button>
-          </div>
-          <button type="button" onClick={sendOtp} disabled={loading} className="w-full text-center text-xs font-medium text-brand-700 hover:underline">
-            Resend code
+          <button
+            type="button"
+            onClick={sendMagicLink}
+            disabled={loading}
+            className="w-full rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 disabled:opacity-50"
+          >
+            {loading ? "Sending…" : "Resend verification link"}
           </button>
         </div>
       )}
@@ -304,7 +298,7 @@ export default function Signup() {
             </div>
           )}
           <div className="flex gap-3">
-            <button type="button" onClick={back} className="w-full rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600">
+            <button type="button" onClick={() => setStep(1)} className="w-full rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600">
               Back
             </button>
             <LoadingButton loading={loading}>Sign Up</LoadingButton>

@@ -7,6 +7,7 @@ import { ProtectedRoute, RoleProtectedRoute, GuestRoute } from "./components/rou
 import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
+import AuthCallback from "./pages/AuthCallback.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
 
 import StudentLayout from "./pages/student/StudentLayout.jsx";
@@ -84,6 +85,7 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
       <Route path="/signup" element={<GuestRoute><Signup /></GuestRoute>} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Role-aware entry: /app sends the user to their role's dashboard */}
