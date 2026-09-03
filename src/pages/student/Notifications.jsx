@@ -118,11 +118,16 @@ export default function Notifications() {
       const label = r.status === "approved" ? "Fund request approved"
         : r.status === "declined" ? "Fund request declined"
         : "Fund request sent — waiting for approval";
+      const body = r.status === "approved"
+        ? `Approved — ${naira(r.amount)} is available for you in the wallet${r.note ? ` · "${r.note}"` : ""}`
+        : r.status === "declined"
+          ? `Not approved by your parent${r.note ? ` · "${r.note}"` : ""}`
+          : `Waiting for your parent's approval${r.note ? ` · "${r.note}"` : ""}`;
       items.push({
         id: `fr-${r.id}`,
         type,
         title: `${label}: ${naira(r.amount)}`,
-        body: r.note || "No note",
+        body,
         time: r.created_at,
       });
     });
