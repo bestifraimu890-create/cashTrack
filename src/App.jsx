@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "./supabase/client.js";
 import { useAuth } from "./context/AuthContext.jsx";
 import { ProtectedRoute, RoleProtectedRoute, GuestRoute } from "./components/routes/ProtectedRoute.jsx";
+import { isSignupPending } from "./lib/auth.js";
 
 import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
@@ -67,6 +68,8 @@ function RoleRouter() {
   }, [user?.id]);
 
   if (!user) return <Navigate to="/login" replace />;
+  // Verification gate: unverified signups go back to finish verifying.
+  if (isSignupPending()) return <Navigate to="/signup" replace />;
   // Wait briefly for the profile role so parents/admins land on the right dashboard
   if (loading || (!role && !checked)) {
     return (

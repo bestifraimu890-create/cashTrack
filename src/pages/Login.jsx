@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "../supabase/client.js";
-import { ensureProfile } from "../lib/auth.js";
+import { ensureProfile, isSignupPending, needsVerification, markSignupComplete } from "../lib/auth.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { AuthShell } from "../components/layout/AuthShell.jsx";
 import { ErrorBanner, LoadingButton } from "../components/common/index.js";
@@ -19,6 +19,8 @@ export default function Login({ error: appError }) {
   // Already has a session — finish setup if needed and route in
   useEffect(() => {
     let active = true;
+    // A transient session from an unverified signup must not auto-enter the app.
+    if (isSignupPending()) return;
     supabase.auth.getSession().then(async ({ data }) => {
       if (!active || !data.session) return;
       const user = data.session.user;
@@ -47,6 +49,12 @@ export default function Login({ error: appError }) {
       setError("Enter your email and password.");
       return;
     }
+    // No backdoor: an email that still owes us a magic-link click
+    // cannot log in with password until it verifies.
+    if (needsVerification(email.trim())) {
+      setError("Please verify your email first — click the link we sent you.");
+      return;
+    }
     setLoading(true);
     try {
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
@@ -55,6 +63,9 @@ export default function Login({ error: appError }) {
       });
       if (signInError) throw signInError;
       if (!data.user) throw new Error("Could not sign you in. Please try again.");
+
+      // A clean login clears any abandoned signup-verification state.
+      markSignupComplete(email.trim());
 
       const { data: profile } = await supabase
         .from("profiles")

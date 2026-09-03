@@ -2,12 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Check, GraduationCap, Users, Eye, EyeOff, Mail } from "lucide-react";
 import { supabase } from "../supabase/client.js";
-import { ensureProfile } from "../lib/auth.js";
+import { ensureProfile, PENDING_KEY, VERIFIED_KEY } from "../lib/auth.js";
 import { AuthShell } from "../components/layout/AuthShell.jsx";
 import { ErrorBanner } from "../components/common/index.js";
-
-const PENDING_KEY = "cashtrack_pending_signup";
-const VERIFIED_KEY = "cashtrack_signup_verified";
 
 export default function Signup() {
   const navigate = useNavigate();

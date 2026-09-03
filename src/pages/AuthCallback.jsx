@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/client.js";
-import { ensureProfile } from "../lib/auth.js";
+import { ensureProfile, markEmailVerified } from "../lib/auth.js";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -28,12 +28,12 @@ export default function AuthCallback() {
           } catch {
             /* profile creation is best-effort here; RoleRouter retries the lookup */
           }
-          try {
-            localStorage.setItem("cashtrack_signup_verified", sessionUser.email ?? "");
-          } catch {
-            /* ignore storage errors */
-          }
-          navigate("/app", { replace: true });
+          markEmailVerified(sessionUser.email ?? "");
+          // Pure verification: sign back out so the dashboard stays gated
+          // behind password login. The signup page picks up the verified
+          // flag and offers "Continue to Log In".
+          await supabase.auth.signOut();
+          navigate("/signup", { replace: true });
           return;
         }
 
