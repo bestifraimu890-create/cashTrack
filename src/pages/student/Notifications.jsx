@@ -14,6 +14,9 @@ const ACTIVITY_ICONS = {
   withdrawal_completed: { icon: CheckCircle2, color: "text-mint-600", bg: "bg-mint-50" },
   withdrawal_failed: { icon: AlertTriangle, color: "text-red-500", bg: "bg-red-50" },
   funding: { icon: ArrowDownLeft, color: "text-mint-600", bg: "bg-mint-50" },
+  fund_pending: { icon: Clock, color: "text-amber-500", bg: "bg-amber-50" },
+  fund_approved: { icon: CheckCircle2, color: "text-mint-600", bg: "bg-mint-50" },
+  fund_declined: { icon: AlertTriangle, color: "text-red-500", bg: "bg-red-50" },
   linked: { icon: Link2, color: "text-blue-500", bg: "bg-blue-50" },
 };
 
@@ -102,6 +105,28 @@ export default function Notifications() {
       });
     }
 
+    const { data: fr } = await supabase
+      .from("fund_requests")
+      .select("id, amount, note, status, created_at")
+      .eq("student_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    (fr ?? []).forEach((r) => {
+      const type = r.status === "approved" ? "fund_approved"
+        : r.status === "declined" ? "fund_declined"
+        : "fund_pending";
+      const label = r.status === "approved" ? "Fund request approved"
+        : r.status === "declined" ? "Fund request declined"
+        : "Fund request sent — waiting for approval";
+      items.push({
+        id: `fr-${r.id}`,
+        type,
+        title: `${label}: ${naira(r.amount)}`,
+        body: r.note || "No note",
+        time: r.created_at,
+      });
+    });
+
     items.sort((a, b) => new Date(b.time) - new Date(a.time));
     setActivities(items);
     setLoading(false);
@@ -116,7 +141,7 @@ export default function Notifications() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Activity Feed</h2>
-          <p className="text-sm text-slate-500">All transactions, withdrawals and account events.</p>
+          <p className="text-sm text-slate-500">Transactions, withdrawals, fund requests and account events.</p>
         </div>
       </div>
 

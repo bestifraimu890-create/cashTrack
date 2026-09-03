@@ -1,9 +1,25 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { Lock, ShieldCheck, CheckCircle2, X, Link2, Send } from "lucide-react";
+import { Lock, ShieldCheck, CheckCircle2, X, Link2, Send, Clock } from "lucide-react";
 import { supabase } from "../../supabase/client.js";
 import { naira } from "../../lib/constants.js";
 import { Card, ProgressBar } from "../../components/common/index.js";
+
+const STATUS_STYLE = {
+  pending: "bg-amber-50 text-amber-600",
+  approved: "bg-mint-50 text-mint-700",
+  declined: "bg-red-50 text-red-600",
+};
+
+function StatusBadge({ status }) {
+  const Icon = status === "approved" ? CheckCircle2 : status === "declined" ? X : Clock;
+  return (
+    <span className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${STATUS_STYLE[status] ?? STATUS_STYLE.pending}`}>
+      <Icon size={12} />
+      {status}
+    </span>
+  );
+}
 
 export default function Wallet() {
   const navigate = useNavigate();
@@ -13,6 +29,22 @@ export default function Wallet() {
   const [fundNote, setFundNote] = useState("");
   const [sending, setSending] = useState(false);
   const [fundStatus, setFundStatus] = useState(null);
+  const [myRequests, setMyRequests] = useState([]);
+
+  const loadMyRequests = async () => {
+    if (!user?.id) return;
+    const { data } = await supabase
+      .from("fund_requests")
+      .select("id, amount, note, status, created_at")
+      .eq("student_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    setMyRequests(data ?? []);
+  };
+
+  useEffect(() => {
+    loadMyRequests();
+  }, [user?.id]);
 
   const handleFundRequest = async () => {
     const value = parseFloat(fundAmount);
@@ -41,6 +73,7 @@ export default function Wallet() {
       setFundStatus({ type: "success", msg: `Request for ${naira(value)} sent to ${parentName}.` });
       setFundAmount("");
       setFundNote("");
+      loadMyRequests();
     }
     setSending(false);
   };
@@ -130,6 +163,32 @@ export default function Wallet() {
           </div>
         </Card>
       )}
+
+      <Card className="p-5">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-slate-900">My Requests</h3>
+          <button onClick={loadMyRequests} className="text-xs font-semibold text-brand-700 hover:underline">
+            Refresh
+          </button>
+        </div>
+        {myRequests.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-400">No fund requests yet. Your requests and your parent's decisions will show here.</p>
+        ) : (
+          <div className="mt-3 divide-y divide-slate-100">
+            {myRequests.map((r) => (
+              <div key={r.id} className="flex items-center gap-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-800 tabular-nums">{naira(r.amount)}</p>
+                  <p className="truncate text-xs text-slate-400">
+                    {r.note || "No note"} · {new Date(r.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short" })}
+                  </p>
+                </div>
+                <StatusBadge status={r.status} />
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <Card className="p-6">
